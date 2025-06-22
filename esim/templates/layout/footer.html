@@ -1,0 +1,13 @@
+{% load static %}
+{% load sass_tags %}
+
+<!-- footer start-->
+<footer class="footer {% if request.path == '/footer_dark' %} footer-dark {% elif request.path == '/footer_fixed' %}footer-fix{% endif %}">
+  <div class="container-fluid">
+    <div class="row">
+      <div class="col-md-12 footer-copyright text-center">
+        <p class="mb-0">Copyright <span class="year-update"> </span> © Cuba Theme By Pixelstrap  </p>
+      </div>
+    </div>
+  </div>
+</footer>

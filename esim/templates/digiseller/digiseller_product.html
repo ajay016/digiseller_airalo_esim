@@ -1,0 +1,760 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load sass_tags %}
+
+{% block custom_css %}
+{% comment %} <link rel="stylesheet" type="text/css" href="{% static 'assets/css/vendors/intltelinput.min.css' %}">
+<link rel="stylesheet" type="text/css" href="{% static 'assets/css/vendors/tagify.css' %}"> {% endcomment %}
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<link rel="stylesheet" href="{% static 'assets/css/select2_custom_style.css' %}">
+
+<style>
+    .custom-large-btn:hover{
+        background-color: #4a3dd9 !important;
+    }
+
+    .custom-delete-btn:hover{
+        background-color: #ff0000 !important;
+    }
+
+    .success-message{
+        background-color: #10cf1057;
+        color: #096009;
+    }
+
+    .error-message{
+        background-color: #ff0d0d78 !important;
+        color: #890000;
+    }
+
+    .edit{
+        cursor: pointer;
+    }
+
+    .edit-icon{
+        cursor: pointer;
+        font-size: 22px !important;
+        transition: 0.3s ease-in-out;
+    }
+
+    .edit-icon:hover{
+        transform: scale(1.15);
+    }
+
+    .delete-icon{
+        cursor: pointer;
+        font-size: 22px !important;
+        transition: 0.3s ease-in-out;
+    }
+
+    .delete-icon:hover{
+        transform: scale(1.15);
+    }
+
+    .delete{
+        cursor: pointer;
+    }
+
+    .error-success-div {
+        max-height: 0;
+        opacity: 0;
+        padding: 10px 20px;
+        border-radius: 20px;
+        overflow: hidden;
+        transition: max-height 0.3s ease, opacity 0.3s ease;
+    }
+
+    .error-success-div.show {
+        /* adjust 200px to be comfortably larger than your tallest message */
+        max-height: 200px;
+        opacity: 1;
+    }
+    
+    .required-fields-mark{
+        color: red;
+    }
+
+
+    .theme-form input[type=text],.theme-form input[type=email],
+    .theme-form input[type=search], .theme-form input[type=password],
+    .theme-form input[type=number], .theme-form input[type=tel],
+    .theme-form input[type=date], .theme-form input[type=datetime-local],
+    .theme-form input[type=time], .theme-form input[type=datetime-local],
+    .theme-form input[type=month], .theme-form input[type=week],
+    .theme-form input[type=url], .theme-form input[type=file],
+    .theme-form textarea, .theme-form{
+        padding: 6px 10px;
+    }
+
+    .select2-container .select2-selection--single{
+        height: 35px !important;
+        padding: 4px 10px !important;
+    }
+
+    .select2-container--default .select2-selection--single .select2-selection__arrow{
+        top: 4px !important;
+    }
+
+    /* variant div style */
+    .variant-container {
+        border: 1px solid #e0e0e0;
+        border-radius: 8px;
+        overflow: hidden;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+    }
+    
+    .variant-scroll-container {
+        overflow-x: auto;
+        min-height: 50px;
+        max-height: 800px;
+    }
+    
+    .variant-header {
+        font-weight: 600;
+        color: #555;
+        border-bottom: 1px solid #e0e0e0;
+    }
+    
+    .variant-row {
+        transition: background-color 0.2s;
+    }
+    
+    .variant-row:hover {
+        background-color: #f9f9f9;
+    }
+    
+    .variant-field {
+        padding: 0 8px;
+        min-width: 0; /* Important for text truncation */
+    }
+    
+    .variant-scroll-container::-webkit-scrollbar {
+        height: 8px;
+    }
+    
+    .variant-scroll-container::-webkit-scrollbar-track {
+        background: #f1f1f1;
+        border-radius: 4px;
+    }
+    
+    .variant-scroll-container::-webkit-scrollbar-thumb {
+        background: #ccc;
+        border-radius: 4px;
+    }
+    
+    .variant-scroll-container::-webkit-scrollbar-thumb:hover {
+        background: #aaa;
+    }
+    /* variant div style */
+
+
+    .card {
+        border-radius: 12px;
+        overflow: hidden;
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+    
+    .card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 20px rgba(0,0,0,0.1) !important;
+    }
+    
+    .package-item {
+        border: 1px solid rgba(0,0,0,0.05);
+        transition: all 0.3s ease;
+    }
+    
+    .package-item:hover {
+        background: rgba(100, 179, 244, 0.1) !important;
+        border-color: rgba(100, 179, 244, 0.3);
+    }
+    
+    .card-header {
+        padding: 1.25rem 1.5rem;
+        border-bottom: 1px solid rgba(0,0,0,0.05);
+    }
+    
+    .card-footer {
+        padding: 1.25rem 1.5rem;
+    }
+
+    .select-package-btn.selected {
+        background-color: #0d6efd;
+        color: #fff;
+        border-color: #0d6efd;
+    }
+</style>
+{% endblock custom_css %}
+
+{% block content %}
+
+<div class="container-fluid">
+    <div class="row justify-content-center">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h1>{{ digiseller_product.name_goods }}</h1>
+                </div>
+                <form id="variant-assign-form" class="form theme-form dark-inputs" method="POST" action="{% url 'update_variants' %}">
+                    {% csrf_token %}
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-3 col-6">
+                                <div class="mb-3">
+                                <label class="form-label" for="product-id">Product ID</label><span class="required-fields-mark">*</span>
+                                <input class="form-control btn-pill" id="product-id" name="product_id" value="{{ digiseller_product.id_goods }}" type="text" disabled>
+                                </div>
+                            </div>
+
+                            <div class="col-md-3 col-6">
+                                <div class="mb-3">
+                                <label class="form-label" for="name-goods">Name of Product</label><span class="required-fields-mark">*</span>
+                                <input class="form-control btn-pill" id="name-goods" name="name_goods" type="text" value="{{ digiseller_product.name_goods }}" disabled>
+                                </div>
+                            </div>
+
+                            <div class="col-md-3 col-6">
+                                <div class="mb-3">
+                                <label class="form-label" for="price">Price</label><span class="required-fields-mark">*</span>
+                                <input class="form-control btn-pill" id="price" name="price" type="text" value="{{ digiseller_product.price }}" disabled>
+                                </div>
+                            </div>
+
+                            <div class="col-md-3 col-6">
+                                <div class="mb-3">
+                                <label class="form-label" for="currency">Currency</label><span class="required-fields-mark">*</span>
+                                <input class="form-control btn-pill" id="currency" name="currency" type="text" value="{{ digiseller_product.currency }}" disabled>
+                                </div>
+                            </div>
+
+                            <div class="col-md-3 col-6">
+                                <div class="mb-3">
+                                <label class="form-label" for="cnt-sell">Number of Sales</label><span class="required-fields-mark">*</span>
+                                <input class="form-control btn-pill" id="cnt-sell" name="cnt_sell" type="text" value="{{ digiseller_product.cnt_sell }}" disabled>
+                                </div>
+                            </div>
+
+                            <div class="col-md-3 col-6">
+                                <div class="mb-3">
+                                <label class="form-label" for="price-usd">Price in USD</label>
+                                <input class="form-control btn-pill" id="price-usd" name="price_usd" type="text" value="{{ digiseller_product.price_usd }}" disabled>
+                                </div>
+                            </div>
+
+                            <div class="col-md-3 col-6">
+                                <div class="mb-3">
+                                <label class="form-label" for="price-rur">Price in RUR</label>
+                                <input class="form-control btn-pill" id="price-rur" name="price_rur" type="text" value="{{ digiseller_product.price_rur }}" disabled>
+                                </div>
+                            </div>
+
+                            <div class="col-md-3 col-6">
+                                <div class="mb-3">
+                                <label class="form-label" for="price-eur">Price in EUR</label>
+                                <input class="form-control btn-pill" id="price-eur" name="price_eur" type="text" value="{{ digiseller_product.price_eur }}" disabled>
+                                </div>
+                            </div>
+
+                            <div class="col-md-6 col-12">
+                                <div class="mb-3">
+                                <label class="form-label" for="info-goods">Product Information</label>
+                                <textarea 
+                                    class="form-control btn-pill" 
+                                    id="info-goods" 
+                                    name="info_goods" 
+                                    rows="1" 
+                                    style="resize: none; min-height: 100px; border-radius: 20px;"
+                                    disabled
+                                >{{ digiseller_product.info_goods }}</textarea>
+                                </div>
+                            </div>
+
+                            <div class="col-md-6 col-12">
+                                <div class="mb-3">
+                                <label class="form-label" for="add-info">Product Information</label>
+                                <textarea 
+                                    class="form-control btn-pill" 
+                                    id="add-info" 
+                                    name="add_info" 
+                                    rows="1" 
+                                    style="resize: none; min-height: 100px; border-radius: 20px;"
+                                    disabled
+                                >{{ digiseller_product.add_info }}</textarea>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mt-6" style="margin-top: 60px;">
+                            <h3>Variants of "{{ digiseller_product.name_goods }}"</h3>
+                        </div>
+
+                        <div class="row">
+                            <div class="variant-container mb-4">
+                                <div class="variant-header d-flex p-3 rounded-top">
+                                    <div class="variant-field" style="flex: 0 0 100px;">Variant Value</div>
+                                    <div class="variant-field" style="flex: 1 0 200px;">Text</div>
+                                    <div class="variant-field" style="flex: 0 0 120px;">Modify Value</div>
+                                    <div class="variant-field" style="flex: 0 0 150px;">Default Value</div>
+                                    <div class="variant-field" style="flex: 0 0 120px;">Modify Type</div>
+                                    <div class="variant-field" style="flex: 1 0 150px;">Airalo Package</div>
+                                    <div class="variant-field" style="flex: 0 0 120px;">View Packages</div>
+                                </div>
+                                
+                                <div class="variant-scroll-container">
+                                    {% for variant in variants %}
+                                        <div class="variant-row d-flex p-3 border-bottom">
+                                            <div class="variant-field" style="flex: 0 0 100px;">
+                                                <input type="number" class="form-control form-control-sm" name="variant_value_{{ variant.id }}" 
+                                                    value="{{ variant.variant_value }}" id="variant-value-{{ variant.id }}" readonly>
+                                            </div>
+                                            <div class="variant-field" style="flex: 1 0 200px;">
+                                                <input type="text" class="form-control form-control-sm" name="variant_text_{{ variant.id }}"
+                                                    value="{{ variant.text }}" id="variant-text-{{ variant.id }}" readonly>
+                                            </div>
+                                            <div class="variant-field" style="flex: 0 0 120px;">
+                                                <input type="text" class="form-control form-control-sm" name="variant_modify_value_{{ variant.id }}"
+                                                    value="{{ variant.modify_value|default:'' }}" id="variant-modify-value-{{ variant.id }}" readonly>
+                                            </div>
+                                            <div class="variant-field" style="flex: 0 0 150px;">
+                                                <input type="text" class="form-control form-control-sm" name="variant_modify_value_default_{{ variant.id }}"
+                                                    value="{{ variant.modify_value_default|default:'' }}" id="variant-modify-value-default-{{ variant.id }}" readonly>
+                                            </div>
+                                            <div class="variant-field" style="flex: 0 0 120px;">
+                                                <input type="text" class="form-control form-control-sm" name="variant_modify_type_{{ variant.id }}"
+                                                    value="{{ variant.modify_type|default:'' }}" id="variant-modify-type-{{ variant.id }}" readonly>
+                                            </div>
+
+                                            <!-- hidden ID field -->
+                                            <input type="hidden"
+                                                name="variant_airalo_package_{{ variant.id }}"
+                                                value="{{ variant.airalo_package_id|default:'' }}"
+                                                id="variant-airalo-package-{{ variant.id }}">
+
+                                            <!-- visible label of the selected package -->
+                                            <div class="variant-field" style="flex: 1 0 150px;">
+                                                <input type="text" class="form-control form-control-sm" readonly
+                                                    id="variant-airalo-package-title-{{ variant.id }}" value="{{ variant.airalo_package.package_id|default:'(none)' }}">
+                                            </div>
+
+                                            <div id="variant-btn-{{ variant.id }}" class="variant-field" style="flex: 0 0 120px;">
+                                                <button class="btn btn-primary me-3"
+                                                        type="button"
+                                                        data-bs-toggle="modal"
+                                                        data-bs-target="#editModal"
+                                                        data-variant-id="{{ variant.id }}">
+                                                    Packages
+                                                </button>
+                                            </div>
+                                        </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="padding-left: 20px; padding-right: 20px; margin-bottom: 10px;">
+                        <div class="error-success-div p-6"></div>
+                    </div>
+
+                    <div class="card-footer text-end">
+                        <button class="btn btn-primary me-3" type="submit">Save All</button>
+                        <input class="btn btn-light" type="reset" value="Cancel">
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<!--Select Pacakge modal-->
+<div class="modal fade bd-example-modal-xl" id="editModal" tabindex="-1" role="dialog" aria-labelledby="editModal" aria-hidden="true">
+    <div class="modal-dialog modal-xl" role="document">
+        <div class="modal-content">
+            <div class="modal-body">
+                <div class="">
+                    <h1 class="text-center">Find The Package</h1>
+                </div>
+                <div class="modal-toggle-wrapper">  
+                    <div class="card">
+                        <form id="select-package-form" class="form theme-form dark-inputs">
+                            {% csrf_token %}
+                            <div class="card-body">
+                                <div class="row">
+                                    <input type="hidden" id="activeVariantId">
+                                    <div class="col-md-6 col-12">
+                                        <label class="form-label" for="country">Select Base Country</label><span class="required-fields-mark">*</span>
+                                        <select class="select2" name="country" id="country">
+                                            <option value="">Select a Base Country</option>
+                                            {% for country in countries %}
+                                                <option value="{{ country.id }}">{{ country.title }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+
+                                    <div class="col-md-6 col-12">
+                                        <label class="form-label" for="operator-country">Select Operator Country</label><span class="required-fields-mark">*</span>
+                                        <select class="select2" name="operator_country" id="operator-country">
+                                            <option value="">Select a Operator Country</option>
+                                            {% for operator_country in operator_countries %}
+                                                <option value="{{ operator_country.id }}">{{ operator_country.title }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div class="col-md-12">
+                                    <h4 class="mb-4">Packages for {{ selected_country_title }}</h4>
+                                    <div class="row g-4 package-results-container">
+                                        {% for package in packages %}
+                                        <div class="col-md-6 col-lg-4">
+                                            <div class="card border-0 shadow-sm h-100"
+                                                style="background: linear-gradient(135deg, rgba(100, 179, 244, 0.08), rgba(194, 229, 255, 0.15));">
+                                                <div class="card-header bg-transparent border-0">
+                                                    <h5 class="mb-0 text-primary">
+                                                        <i class="fas fa-network-wired me-2"></i>
+                                                        {{ package.operator.title }}
+                                                    </h5>
+                                                </div>
+                                                <div class="card-body">
+                                                    <div class="package-item mb-3 p-3 rounded" style="background: rgba(255,255,255,0.7);">
+                                                        <div class="d-flex justify-content-between mb-2">
+                                                            <span class="text-muted">Country:</span>
+                                                            <span class="fw-bold">{{ package.operator.country.title }}</span>
+                                                        </div>
+                                                        <div class="d-flex justify-content-between mb-2">
+                                                            <span class="text-muted">Data:</span>
+                                                            <span class="fw-bold text-info">{{ package.data }}</span>
+                                                        </div>
+                                                        <div class="d-flex justify-content-between mb-2">
+                                                            <span class="text-muted">Validity:</span>
+                                                            <span class="fw-bold">{{ package.day }} days</span>
+                                                        </div>
+                                                        <div class="d-flex justify-content-between">
+                                                            <span class="text-muted">Price:</span>
+                                                            <span class="fw-bold text-success">€{{ package.price }}</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div class="card-footer bg-transparent border-0">
+                                                    <button type="button" class="btn btn-outline-primary w-100 select-package-btn">
+                                                        Select Package
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        {% empty %}
+                                        <div class="col-12 text-center">
+                                            <p class="text-muted">No packages found for selected filters.</p>
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                            </div>
+                            <div style="padding-left: 20px; padding-right: 20px; margin-bottom: 10px;">
+                                <div class="error-success-div p-6"></div>
+                            </div>
+                            <div class="card-footer text-end">
+                                <button id="modal-submit-btn" class="btn btn-primary custom-large-btn me-3" type="button">Submit</button>
+                                <button class="btn btn-danger custom-delete-btn" type="button" data-bs-dismiss="modal">Close</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<!--Select Package modal-->
+
+<!-- Success Modal -->
+<div class="modal fade" id="successModal" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog modal-sm modal-dialog-centered">
+        <div class="modal-content border-0 text-center p-4">
+        <!-- Animated Checkmark SVG -->
+        <div class="text-center">
+            <img src="{% static 'assets/images/tick_anim.gif' %}" alt="Success" class="success-media" style="width: 150px; height: 150px;"/>
+        </div>
+        <h5 id="success-text" class="mt-3">Airalo Package has been added to the Variant Successfully!</h5>
+        </div>
+    </div>
+</div>
+<!-- Success Modal -->
+
+{% endblock content %}
+
+{% block scriptcontent %} 
+
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<script src="{% static 'assets/js/height-equal.js' %}"></script>
+
+
+<script>
+    $(document).ready(function() {
+        //$('.select2').select2();
+        $('#country').select2({
+            placeholder: 'Select a Base Country',
+            dropdownParent: $('#editModal'),
+            width: '100%'
+        });
+
+        $('#operator-country').select2({
+            placeholder: 'Select an Operator Country',
+            dropdownParent: $('#editModal'),
+            width: '100%'
+        });
+    });
+</script>
+
+
+<script>
+    $(document).ready(function () {
+        const $countrySelect = $('#country');
+        const $regionSelect  = $('#operator-country');
+        const $errorDiv      = $('.error-success-div');
+        const $modal         = $('#editModal');
+
+        // stash active variant
+        $modal.on('show.bs.modal', function(event) {
+            const variantId = $(event.relatedTarget).data('variant-id');
+            $modal.data('variant-id', variantId);
+            $modal.removeData('selected-package-id');
+            $('.select-package-btn').removeClass('selected');
+            $errorDiv.empty().removeClass('alert alert-danger');
+        });
+
+        // fetch & render package cards
+        function fetchPackages(params) {
+            fetch(`/get-packages-by-region/?${params}`, {
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            })
+            .then(r => r.json())
+            .then(data => {
+                // replace the package-cards partial
+                $('.col-md-12 .row.g-4').html(data.html);
+            })
+            .catch(err => console.error('Error fetching packages:', err));
+        }
+
+        // when modal’s country changes
+        $countrySelect.on('change', function () {
+            const countryId = this.value;
+            $regionSelect.val('');  // reset operator-country
+            if (countryId) {
+                fetchPackages(`country=${countryId}`);
+            }
+        });
+
+        // when modal’s operator-country changes
+        $regionSelect.on('change', function () {
+            const regionId = this.value;
+            $countrySelect.val('');  // reset base country
+            if (regionId) {
+                fetchPackages(`region=${regionId}`);
+            }
+        });
+
+        $(document).on('click', '.select-package-btn', function () {
+            const $btn = $(this);
+            const pkgId = $btn.data('package-id');
+            const pkgTitle = $btn.data('package-title');
+
+            // highlight radio-style
+            $('.select-package-btn').removeClass('selected');
+            $btn.addClass('selected');
+
+            // remember for modal-submit
+            $('#editModal')
+                .data('selected-package-id', pkgId)
+                .data('selected-package-title', pkgTitle);
+        });
+
+        // selecting a package
+        $('#modal-submit-btn').on('click', function() {
+            const variantId = $('#editModal').data('variant-id');
+            const packageId = $('#editModal').data('selected-package-id');
+            const packageTitle = $('#editModal').data('selected-package-title');
+
+            if (!packageId) {
+                showMessage('error', 'Please select a package first.');
+                return;
+            }
+
+            // 1) hidden ID field
+            const $hiddenId = $(`#variant-airalo-package-${variantId}`);
+            $hiddenId.val(packageId);
+
+            // 2) visible title field
+            const $titleInp = $(`#variant-airalo-package-title-${variantId}`);
+            $titleInp.val(packageTitle);
+
+            $('#editModal').modal('hide');
+        });
+
+        // outer form submit via fetch
+        $('#variant-assign-form').on('submit', function(e) {
+            e.preventDefault();
+
+            const payload = {};
+            // select all inputs whose id starts with that prefix,
+            // then exclude the ones that have "-title-" in the id
+            $('input[id^="variant-airalo-package-"]')
+                .not('[id*="-title-"]')
+                .each(function() {
+                const id  = this.id.split('-').pop();  // variant ID
+                const val = $(this).val();             // package ID
+                if (val) payload[id] = val;
+                });
+
+            fetch(this.action, {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: {
+                'X-CSRFToken': $('input[name=csrfmiddlewaretoken]').val(),
+                'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ assignments: payload })
+            })
+            .then(async res => {
+                const data = await res.json();
+                if (!res.ok || !data.success) {
+                showMessage('error', data.error || data.message || 'Failed to save.');
+                return;
+                }
+                showMessage('success', data.message);
+
+                const successModal = new bootstrap.Modal(
+                document.getElementById('successModal')
+                );
+                $('#success-text').text(data.message);
+                successModal.show();
+                $('#successModal').on('hidden.bs.modal', () => location.reload());
+            })
+            .catch(err => {
+                showMessage('error', `Request failed: ${err.message}`);
+            });
+        });
+
+        function showMessage(type, message) {
+            const div = $(".error-success-div");
+            const isSuccess = type === "success";
+            const baseClass = isSuccess ? "success-message" : "error-message";
+            const displayDuration = isSuccess ? 2000 : 4000;  // ms
+
+            function expand() {
+                div
+                .removeClass("error-message success-message")   // clear old
+                .addClass(baseClass)                             // add new
+                .text(message);
+
+                // let the browser register the class swap
+                requestAnimationFrame(() => {
+                div.addClass("show");
+                });
+
+                // auto-hide after timeout
+                setTimeout(() => {
+                div.removeClass("show");
+                // on success, also reload after it’s hidden
+                if (isSuccess) {
+                    div.one("transitionend", () => location.reload());
+                }
+                }, displayDuration);
+            }
+
+            if (div.hasClass("show")) {
+                // if currently visible, hide it first then re-expand
+                div.removeClass("show").one("transitionend", expand);
+            } else {
+                expand();
+            }
+        }
+    });
+</script>
+<script>
+    /*$(document).ready(function () {
+        $(document).on('click', '[data-bs-target="#editModal"]', function () {
+            const variantId = $(this).data('variant-id');
+            $('#activeVariantId').val(variantId);
+        });
+
+        function fetchPackages() {
+            const countryId = $('#country').val();
+            const regionId = $('#operator-country').val();
+
+            const params = new URLSearchParams();
+            if (countryId) params.append('country', countryId);
+            if (regionId) params.append('region', regionId);
+
+            fetch(`/get-packages-by-region/?${params.toString()}`)
+                .then(res => res.json())
+                .then(data => {
+                    const container = $('.package-results-container');
+                    container.empty();
+
+                    if (data.packages.length === 0) {
+                        container.html(`<div class="col-12 text-center"><p class="text-muted">No packages found for selected filters.</p></div>`);
+                        return;
+                    }
+
+                    data.packages.forEach(pkg => {
+                        container.append(`
+                            <div class="col-md-6 col-lg-4">
+                                <div class="card border-0 shadow-sm h-100"
+                                    style="background: linear-gradient(135deg, rgba(100, 179, 244, 0.08), rgba(194, 229, 255, 0.15));">
+                                    <div class="card-header bg-transparent border-0">
+                                        <h5 class="mb-0 text-primary">
+                                            <i class="fas fa-network-wired me-2"></i> ${pkg.operator_title}
+                                        </h5>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="package-item mb-3 p-3 rounded" style="background: rgba(255,255,255,0.7);">
+                                            <div class="d-flex justify-content-between mb-2">
+                                                <span class="text-muted">Country:</span>
+                                                <span class="fw-bold">${pkg.country_title}</span>
+                                            </div>
+                                            <div class="d-flex justify-content-between mb-2">
+                                                <span class="text-muted">Data:</span>
+                                                <span class="fw-bold text-info">${pkg.data}</span>
+                                            </div>
+                                            <div class="d-flex justify-content-between mb-2">
+                                                <span class="text-muted">Validity:</span>
+                                                <span class="fw-bold">${pkg.day} days</span>
+                                            </div>
+                                            <div class="d-flex justify-content-between">
+                                                <span class="text-muted">Price:</span>
+                                                <span class="fw-bold text-success">€${pkg.price}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="card-footer bg-transparent border-0">
+                                        <button type="button" class="btn btn-outline-primary w-100 select-package-btn"
+                                            data-package-id="${pkg.id}">Select Package</button>
+                                    </div>
+                                </div>
+                            </div>
+                        `);
+                    });
+
+                })
+                .catch(err => console.error('Error loading packages:', err));
+        }
+
+        $('#country, #operator-country').on('change', fetchPackages);
+
+        // ✅ Delegate click event for dynamically added buttons
+        $(document).on('click', '.select-package-btn', function () {
+            const packageId = $(this).data('package-id');
+            const variantId = $('#activeVariantId').val();  // make sure this input is populated properly
+            console.log('Package selected:', packageId, 'for variant:', variantId);
+
+            // You can now use these to update fields, make API calls, etc.
+            // Example: insert into hidden input or close modal
+            $('#editModal').modal('hide');
+
+            // Optional: Show confirmation
+            alert(`Package ID ${packageId} selected for Variant ID ${variantId}`);
+        });
+    });*/
+</script>
+{% endblock scriptcontent %}

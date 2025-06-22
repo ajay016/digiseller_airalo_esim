@@ -1,0 +1,197 @@
+/**=====================
+    3.59 User-profile CSS start
+==========================**/
+.user-profile {
+  .ttl-info {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    @media (max-width:576px) {
+      align-items: center;
+    }
+    h6 {
+      font-size: calc(14px + (16 - 14) * ((100vw - 320px) / (1920 - 320)));
+      color: $semi-dark;
+      font-weight: 400;
+    }
+  }
+  .border-right {
+    border-right: 1px solid rgba($gray-60, 0.6);
+  }
+  hr {
+    margin: 20px 0;
+  }
+  .hovercard {
+    .cardheader {
+      background: url(../images/other-images/bg-profile.png);
+      background-size: cover;
+      background-position: 10%;
+      height: 470px;
+    }
+    .user-image {
+      position: relative;
+      height: 0;
+      .avatar {
+        margin-top: -80px;
+        img {
+          width: 100px;
+          height: 100px;
+          max-width: 155px;
+          max-height: 155px;
+          border-radius: 50%;
+          border: 7px solid $white;
+        }
+      }
+      .icon-wrapper {
+        position: absolute;
+        bottom: -20px;
+        left: 51%;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: calc(32px + (40 - 32) * ((100vw - 320px) / (1920 - 320)));
+        width: calc(32px + (40 - 32) * ((100vw - 320px) / (1920 - 320)));
+        border-radius: 50%;
+        background-color: $white;
+        cursor: pointer;
+        overflow: hidden;
+        margin: 0 auto;
+        font-size: calc(12px + (17 - 12) * ((100vw - 320px) / (1920 - 320)));
+        box-shadow: 0 0 6px 3px rgba(68, 102, 242, 0.1);
+      }
+    }
+    .info {
+      padding: 30px;
+      .title {
+        margin-bottom: 4px;
+        font-size: 24px;
+        line-height: 1;
+        color: $dark-color;
+        vertical-align: middle;
+        a {
+          color: $theme-font-color;
+          font-size: 20px;
+          text-transform: uppercase;
+          font-weight: 500;
+        }
+      }
+      .desc {
+        overflow: hidden;
+        font-size: 14px;
+        line-height: 20px;
+        color: $semi-dark;
+        text-overflow: ellipsis;
+        text-transform: uppercase;
+      }
+    }
+  }
+  .follow {
+    margin-top: 20px;
+    .follow-num {
+      font-size: 20px;
+      color: $theme-font-color;
+      font-family: $font-rubik, $font-serif;
+      font-weight: 500;
+    }
+    span {
+      color: $semi-dark;
+    }
+  }
+  .profile-img-style {
+    padding: 20px;
+    .img-container {
+      margin-top: 20px;
+    }
+    .user-name {
+      font-size: 14px;
+      color: $theme-font-color;
+      margin: 0;
+      font-weight: 600;
+    }
+    p {
+      line-height: 30px;
+      font-size: 14px;
+      color: $dark-gray;
+      margin-bottom: 0;
+    }
+    .d-flex {
+      img {
+        width: 50px;
+      }
+    }
+  }
+  .like-comment {
+    li {
+      a {
+        color: $dark-gray;
+      }
+      &:first-child {
+        a {
+          &:hover,
+          &:active {
+            color: $danger-color;
+          }
+        }
+      }
+    }
+    span {
+      font-family: $font-rubik, $font-serif;
+    }
+  }
+  .social-media {
+    a {
+      padding: 0 15px;
+      color: $semi-dark;
+      font-size: 24px;
+      cursor: pointer;
+      &:hover {
+        color: var(--theme-default);
+      }
+    }
+  }
+}
+//Edit profile //
+.edit-profile {
+  textarea {
+    font-size: 14px;
+    color: rgba($badge-light-color, 0.8);
+  }
+  .profile-title {
+    .d-flex {
+      align-items: center;
+      margin-bottom: 30px;
+      .flex-grow-1 {
+        margin-left: 14px;
+        [dir="rtl"] & {
+          margin-left: unset;
+          margin-right: 14px;
+        }
+      }
+    }
+  }
+  .add-project {
+    table {
+      .btn-transparent {
+        &:active {
+          border-color: $transparent-color;
+        }
+      }
+    }
+  }
+}
+// user-cards
+.social-user-cards {
+  .social-profile {
+    .social-follow {
+      li {
+        span {
+          @include pixelstrap-ellipsis;
+          width: 100%;
+        }
+      }
+    }
+  }
+}
+/**=====================
+    3.59 User-profile CSS Ends
+==========================**/

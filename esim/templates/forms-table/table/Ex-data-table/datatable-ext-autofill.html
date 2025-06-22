@@ -1,0 +1,46 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load sass_tags %}
+
+{% block css %}
+<link rel="stylesheet" type="text/css" href="{% static 'assets/css/vendors/jquery.dataTables.css' %}">
+<link rel="stylesheet" type="text/css" href="{% static 'assets/css/vendors/dataTables.bootstrap5.css' %}">
+<link rel="stylesheet" type="text/css" href="{% static 'assets/css/vendors/autoFill.bootstrap5.css' %}">
+<link rel="stylesheet" type="text/css" href="{% static 'assets/css/vendors/keyTable.bootstrap5.css' %}">
+<link rel="stylesheet" type="text/css" href="{% static 'assets/css/vendors/buttons.bootstrap5.css' %}">
+<link rel="stylesheet" type="text/css" href="{% static 'assets/css/vendors/fixedHeader.bootstrap5.css' %}">
+<link rel="stylesheet" type="text/css" href="{% static 'assets/css/vendors/responsive.bootstrap5.css' %}">
+<link rel="stylesheet" type="text/css" href="{% static 'assets/css/vendors/rowReorder.bootstrap5.css' %}">
+{% endblock css %}
+
+{% block content %}
+
+{% include 'forms-table/table/Ex-data-table/components/datatable-ext-autofill.html' %}
+
+{% endblock %}
+
+{% block scriptcontent %} 
+
+<script src="{% static 'assets/js/datatable/datatables/jquery.dataTables.min.js' %}"></script>
+<script src="{% static 'assets/js/datatable/datatables/dataTables1.js' %}"></script>
+<script src="{% static 'assets/js/datatable/datatables/dataTables.bootstrap5.js' %}"></script>
+<script src="{% static 'assets/js/datatable/datatable-extension/dataTables.autoFill.js' %}"></script>
+<script src="{% static 'assets/js/datatable/datatable-extension/autoFill.bootstrap5.js' %}"></script>
+<script src="{% static 'assets/js/datatable/datatable-extension/dataTables.keyTable.js' %}"></script>
+<script src="{% static 'assets/js/datatable/datatable-extension/keyTable.bootstrap5.js' %}"></script>
+<script src="{% static 'assets/js/datatable/datatable-extension/dataTables.buttons.js' %}"></script>
+<script src="{% static 'assets/js/datatable/datatable-extension/buttons.bootstrap5.js' %}"></script>
+<script src="{% static 'assets/js/datatable/datatable-extension/buttons.colVis.min.js' %}"></script>
+<script src="{% static 'assets/js/datatable/datatable-extension/dataTables.fixedHeader.js' %}"></script>
+<script src="{% static 'assets/js/datatable/datatable-extension/fixedHeader.bootstrap5.js' %}"></script>
+<script src="{% static 'assets/js/datatable/datatable-extension/jszip.min.js' %}"></script>
+<script src="{% static 'assets/js/datatable/datatable-extension/pdfmake.min.js' %}"></script>
+<script src="{% static 'assets/js/datatable/datatable-extension/vfs_fonts.js' %}"></script>
+<script src="{% static 'assets/js/datatable/datatable-extension/buttons.html5.min.js' %}"></script>
+<script src="{% static 'assets/js/datatable/datatable-extension/dataTables.responsive.js' %}"></script>
+<script src="{% static 'assets/js/datatable/datatable-extension/responsive.bootstrap5.js' %}"></script>
+<script src="{% static 'assets/js/datatable/datatable-extension/dataTables.rowReorder.js' %}"></script>
+<script src="{% static 'assets/js/datatable/datatable-extension/rowReorder.bootstrap5.js' %}"></script>
+<script src="{% static 'assets/js/datatable/datatable-extension/custom.js' %}"></script>
+    
+{% endblock %}

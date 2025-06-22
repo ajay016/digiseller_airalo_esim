@@ -1,0 +1,20 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load sass_tags %}
+
+{% block css %}
+{% endblock css %}
+
+{% block content %}
+
+{% include 'components/bonus-ui/components/draggable-card.html' %}
+
+{% endblock %}
+
+{% block scriptcontent %} 
+
+<script src="{% static 'assets/js/sortable/sortable.min.js' %}"></script>
+<script src="{% static 'assets/js/dragable/sortable-custom.js' %}"></script>
+<script src="{% static 'assets/js/height-equal.js' %}"></script>
+
+{% endblock %}

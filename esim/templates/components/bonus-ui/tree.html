@@ -1,0 +1,24 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load sass_tags %}
+
+{% block css %}
+<link rel="stylesheet" type="text/css" href="{% static 'assets/css/vendors/prism.css' %}">
+{% endblock css %}
+
+{% block content %}
+
+{% include 'components/bonus-ui/components/tree.html' %}
+
+{% endblock %}
+
+{% block scriptcontent %} 
+
+<script src="{% static 'assets/js/prism/prism.min.js' %}"></script>
+<script src="{% static 'assets/js/clipboard/clipboard.min.js' %}"></script>
+<script src="{% static 'assets/js/custom-card/custom-card.js' %}"></script>
+<script src="{% static 'assets/js/sortable/sortable.min.js' %}"></script>
+<script src="{% static 'assets/js/sortable/custom_sortable.js' %}"></script>
+<script src="{% static 'assets/js/height-equal.js' %}"></script>
+
+{% endblock %}

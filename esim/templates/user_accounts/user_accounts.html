@@ -1,0 +1,481 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load sass_tags %}
+
+{% block css %}
+<link rel="stylesheet" type="text/css" href="{% static 'assets/css/vendors/jquery.dataTables.css' %}">
+<link rel="stylesheet" type="text/css" href="{% static 'assets/css/vendors/dataTables.bootstrap5.css' %}">
+{% endblock css %}
+
+{% block custom_css %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" integrity="sha512-Evv84Mr4kqVGRNSgIGL/F/aIDqQb7xQ2vcrdIwxfjThSH8CSR7PBEakCr51Ck+w+/U6swU2Im1vVX0SVk9ABhg==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<link rel="stylesheet" href="{% static 'assets/css/select2_custom_style.css' %}">
+<style>
+    .custom-large-btn:hover{
+        background-color: #4a3dd9 !important;
+    }
+
+    .custom-delete-btn:hover{
+        background-color: #ff0000 !important;
+    }
+
+    .modal-body{
+        padding-top: 34px !important;
+    }
+
+    .success-message{
+        background-color: #10cf1057;
+        color: #096009;
+    }
+
+    .error-message{
+        background-color: #ff0d0d78 !important;
+        color: #890000;
+    }
+
+    .edit{
+        cursor: pointer;
+    }
+
+    .edit-icon{
+        cursor: pointer;
+        font-size: 22px !important;
+        transition: 0.3s ease-in-out;
+    }
+
+    .edit-icon:hover{
+        transform: scale(1.15);
+    }
+
+    .delete-icon{
+        cursor: pointer;
+        font-size: 22px !important;
+        transition: 0.3s ease-in-out;
+    }
+
+    .delete-icon:hover{
+        transform: scale(1.15);
+    }
+
+    .delete{
+        cursor: pointer;
+    }
+
+    .error-success-div {
+        max-height: 0;
+        opacity: 0;
+        padding: 10px 20px;
+        border-radius: 20px;
+        overflow: hidden;
+        transition: max-height 0.3s ease, opacity 0.3s ease;
+    }
+
+    .error-success-div.show {
+        /* adjust 200px to be comfortably larger than your tallest message */
+        max-height: 200px;
+        opacity: 1;
+    }
+
+    .required-fields-mark{
+        color: red;
+    }
+
+    
+    /* status circle */
+    .status-indicator {
+        display: inline-block;
+        width: 10px;
+        height: 10px;
+        margin-right: 6px;
+        border-radius: 50%;
+        box-shadow: 0 0 5px rgba(0,0,0,0.2);
+    }
+
+    .status-indicator.online {
+        background-color: #28a745; /* green */
+        box-shadow: 0 0 8px #28a745;
+    }
+
+    .status-indicator.offline {
+        background-color: #dc3545; /* red */
+        box-shadow: 0 0 8px #dc3545;
+    }
+    /* status circle */
+</style>
+{% endblock custom_css %}
+
+{% block content %}
+
+<div class="container-fluid datatable-init">
+    <div class="row">
+        <!-- Zero Configuration  Starts-->
+        <div class="col-sm-12">
+            <div class="card">
+                <div class="card-header pb-0 card-no-border">
+                    <div class="row justify-content-center">
+                        <div class="col-md-6">
+                            <h1>List of All Regions</h1>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="d-flex justify-content-end">
+                                <a href="{% url 'add_user_account' %}">
+                                    <button class="btn btn-pill btn-primary btn-lg custom-large-btn">
+                                        <span class="me-6">
+                                            <i class="fa-solid fa-plus"></i>
+                                        </span> Add a New User Account
+                                    </button>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                    
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive custom-scrollbar">
+                        <table class="display table-striped border" id="basic-1">
+                            <thead>
+                            <tr>
+                                <th>Email</th>
+                                <th>Password</th>
+                                <th>Key</th>
+                                <th>Region</th>
+                                <th>Name</th>
+                                <th>Phone</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                                {% for user_account in user_accounts %}
+                                    <tr data-id="{{ user_account.id }}">
+                                        <td>{{ user_account.email }}</td>
+                                        <td>{{ user_account.user_password }}</td>
+                                        <td>{{ user_account.auth_key }}</td>
+                                        <td>{{ user_account.region }}</td>
+                                        <td>{{ user_account.name }}</td>
+                                        <td>{{ user_account.phone }}</td>
+                                        <td>
+                                            {% if user_account.status == 1 %}
+                                                <span class="status-indicator online"></span> Online
+                                            {% else %}
+                                                <span class="status-indicator offline"></span> Offline
+                                            {% endif %}
+                                        </td>
+                                        <td> 
+                                            <ul class="action"> 
+                                                <li class="edit">
+                                                    <span class="edit-icon-span">
+                                                        <i
+                                                            class="fa-regular fa-pen-to-square edit-icon"
+                                                            data-bs-toggle="modal"
+                                                            data-bs-target="#editModal"
+                                                            data-id="{{ user_account.id }}"
+                                                            data-email="{{ user_account.email }}"
+                                                            data-password="{{ user_account.user_password }}"
+                                                            data-region-id="{{ user_account.region.id }}"
+                                                            data-key="{{ user_account.auth_key }}"
+                                                            data-name="{{ user_account.name }}"
+                                                            data-phone="{{ user_account.phone }}"
+                                                        ></i>
+                                                    </span>
+                                                </li>
+                                                <li class="delete" data-id="{{ user_account.id }}">
+                                                    <span class="delete-icon-span">
+                                                        <i class="fa-solid fa-trash-can delete-icon" data-id="{{ user_account.id }}" data-bs-toggle="modal" data-bs-target="#deleteConfirmationModal" data-whatever="@getbootstrap"></i>
+                                                    </span>
+                                                </li>
+                                            </ul>
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- Zero Configuration  Ends-->
+    </div>
+</div>
+
+
+<!--Edit modal-->
+<div class="modal fade bd-example-modal-xl" id="editModal" tabindex="-1" role="dialog" aria-labelledby="editModal" aria-hidden="true">
+    <div class="modal-dialog modal-xl" role="document">
+        <div class="modal-content">
+            <div class="modal-body">
+                <div class="">
+                    <h1 class="text-center">Update the User Account</h1>
+                </div>
+                <div class="modal-toggle-wrapper">  
+                    <div class="card">
+                        <form class="form theme-form dark-inputs">
+                            {% csrf_token %}
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-6 col-12">
+                                        <div class="mb-3">
+                                        <label class="form-label" for="email">Email Address</label><span class="required-fields-mark">*</span>
+                                        <input class="form-control btn-pill" id="email" name="email" type="email" placeholder="name@example.com">
+                                        </div>
+                                    </div>
+
+                                    <div class="col-md-6 col-12">
+                                        <div class="mb-3">
+                                        <label class="form-label" for="password">Password</label><span class="required-fields-mark">*</span>
+                                        <input class="form-control btn-pill" id="password" name="password" type="text" placeholder="Password">
+                                        </div>
+                                    </div>
+
+                                    <div class="col-md-6 col-12">
+                                        <label class="form-label" for="key">Select Region</label><span class="required-fields-mark">*</span>
+                                        <select class="select2" name="region" id="region">
+                                            <option value="">Select a region</option>
+                                            {% for region in regions %}
+                                                <option value="{{ region.id }}">{{ region.name }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+
+                                    <div class="col-md-6 col-12">
+                                        <div class="mb-3">
+                                            <label class="form-label" for="key">Key</label><span class="required-fields-mark">*</span>
+                                            <input class="form-control btn-pill" id="key" name="key" type="text" placeholder="Enter the key">
+                                        </div>
+                                    </div>
+
+                                    <div class="col-md-6 col-12">
+                                        <div class="mb-3">
+                                        <label class="form-label" for="name">Name</label>
+                                        <input class="form-control btn-pill" id="name" name="name" type="text" placeholder="Enter the name of the customer">
+                                        </div>
+                                    </div>
+
+                                    <div class="col-md-6 col-12">
+                                        <div class="mb-3">
+                                        <label class="form-label" for="phone">Phone</label>
+                                        <input class="form-control btn-pill" id="phone" name="phone" type="text" placeholder="Enter the phone number">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div style="padding-left: 20px; padding-right: 20px; margin-bottom: 10px;">
+                                <div class="error-success-div p-6"></div>
+                            </div>
+                            <div class="card-footer text-end">
+                                <button class="btn btn-primary custom-large-btn me-3" type="submit">Submit</button>
+                                <button class="btn btn-danger custom-delete-btn" type="button" data-bs-dismiss="modal">Close</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<!--Edit modal-->
+
+<!--Delete Modal-->
+<div class="modal fade" id="deleteConfirmationModal" tabindex="-1" role="dialog" aria-labelledby="deleteConfirmationModal" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-toggle-wrapper text-start dark-sign-up">
+                <div class="modal-body">
+                    <!-- Trash SVG -->
+                    <div class="text-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="96" height="96" viewBox="0 0 24 24">
+                            <path fill="#ce2222" d="M10 5h4a2 2 0 1 0-4 0M8.5 5a3.5 3.5 0 1 1 7 0h5.75a.75.75 0 0 1 0 1.5h-1.32l-1.17 12.111A3.75 3.75 0 0 1 15.026 22H8.974a3.75 3.75 0 0 1-3.733-3.389L4.07 6.5H2.75a.75.75 0 0 1 0-1.5zm2 4.75a.75.75 0 0 0-1.5 0v7.5a.75.75 0 0 0 1.5 0zM14.25 9a.75.75 0 0 0-.75.75v7.5a.75.75 0 0 0 1.5 0v-7.5a.75.75 0 0 0-.75-.75" stroke-width="0.8" stroke="#ce2222" />
+                        </svg>
+                    </div>
+                    <div class="p-4">
+                        <h4 class="mb-3 text-center">Are you sure?</h4>
+                        <p class="mb-4 text-center">This action will permanently delete the region.</p>
+                        <div class="card-footer text-end">
+                            <div class="d-flex justify-content-center gap-2">
+                            <button id="confirm-delete" class="btn btn-danger">Yes</button>
+                            <button class="btn btn-secondary close-btn" type="button" data-bs-dismiss="modal">Cancel</button>
+                        </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<!--Delete Modal-->
+
+<!-- Success Modal -->
+<div class="modal fade" id="successModal" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog modal-sm modal-dialog-centered">
+        <div class="modal-content border-0 text-center p-4">
+        <!-- Animated Checkmark SVG -->
+        <div class="text-center">
+            <img src="{% static 'assets/images/tick_anim.gif' %}" alt="Success" class="success-media" style="width: 150px; height: 150px;"/>
+        </div>
+        <h5 id="success-text" class="mt-3">Deleted successfully!</h5>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scriptcontent %} 
+
+<script src="{% static 'assets/js/datatable/datatables/jquery.dataTables.min.js' %}"></script>
+<script src="{% static 'assets/js/datatable/datatables/dataTables1.js' %}"></script>
+<script src="{% static 'assets/js/datatable/datatables/dataTables.bootstrap5.js' %}"></script>
+<script src="{% static 'assets/js/datatable/datatables/datatable.custom2.js' %}"></script>
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+
+<script>
+    $(document).ready(function() {
+        $('.select2').select2();
+    });
+</script>
+
+<script>
+    function showMessage(type, message) {
+        const div = $(".error-success-div");
+
+        // routine to set text + color and then expand
+        function expand() {
+            div
+            .removeClass("error-message success-message")
+            .addClass(type + "-message")
+            .text(message);
+
+            // small delay so the browser “sees” the reset
+            requestAnimationFrame(() => {
+            div.addClass("show");
+            });
+
+            if (type === "success") {
+            setTimeout(() => location.reload(), 2000);
+            }
+        }
+
+        if (div.hasClass("show")) {
+            // 1. If already shown, collapse first
+            div.removeClass("show");
+
+            // 2. Wait for collapse transition to finish, then expand
+            div.one("transitionend", expand);
+        } else {
+            // first time: just expand
+            expand();
+        }
+    }
+
+    // EDIT: delegate to document in case rows are dynamic
+    $(document).on("click", ".edit-icon", function() {
+        const email = $(this).data("email");
+        const name = $(this).data("name");
+        const id = $(this).data("id");
+        const password = $(this).data("password")
+        const key = $(this).data("key")
+        const region = $(this).data("region")
+        const phone = $(this).data("phone")
+        const regionId = $(this).data("region-id");
+
+        editId = id;
+        $("#email").val(email);
+        $("#password").val(password);
+        $("#key").val(key);
+        $("#name").val(name);
+        $("#phone").val(phone);
+        $("#region").val(regionId).change();
+    });
+
+    $("#editModal form").on("submit", function (e) {
+        e.preventDefault();
+
+        const formData = new FormData(this);
+        formData.append("id", editId); // include the user ID to identify which user to update
+
+        fetch("/edit-user-account/", {
+            method: "POST",  // You can change this to PUT if your backend expects it
+            headers: {
+                "X-CSRFToken": "{{ csrf_token }}"
+            },
+            body: formData
+        })
+        .then(res => res.json())
+        .then(data => {
+            // show message or reload table
+            showMessage(data.success ? "success" : "error", data.message);
+            if (data.success) {
+                //$("#editModal").modal("hide");
+                //location.reload(); // or refresh just the affected row
+
+                // 1. Hide delete modal
+                bootstrap.Modal.getInstance($("#editModal")[0]).hide();
+
+                // Set dynamic success message
+                $("#success-text").text("Edited successfully!");
+
+                // 2. Show success modal
+                const successModal = new bootstrap.Modal($("#successModal")[0]);
+                successModal.show();
+
+                // 3. After animation+delay, reload
+                setTimeout(() => {
+                    successModal.hide();
+                    location.reload();
+                }, 1500); // 1.5s gives time for checkmark animation
+            }
+        })
+        .catch(err => {
+            showMessage("error", "Something went wrong.");
+        });
+    });
+
+    // DELETE
+    let pendingDeleteId = null;
+
+    // Open delete modal
+    $(document).on("click", ".delete-icon", function() {
+        pendingDeleteId = this.dataset.id;
+        new bootstrap.Modal($("#deleteConfirmationModal")[0]).show();
+    });
+
+    // Confirm delete
+    $("#confirm-delete").on("click", function() {
+        fetch("/delete-user-account/", {
+            method: "DELETE",
+            headers: {
+                "Content-Type": "application/json",
+                "X-CSRFToken": "{{ csrf_token }}"
+            },
+            body: JSON.stringify({ action: "delete", id: pendingDeleteId })
+        })
+        .then(r => r.json())
+        .then(d => {
+            // 1. Hide delete modal
+            bootstrap.Modal.getInstance($("#deleteConfirmationModal")[0]).hide();
+
+            // 2. Show success modal
+            const successModal = new bootstrap.Modal($("#successModal")[0]);
+            successModal.show();
+
+            // 3. After animation+delay, reload
+            setTimeout(() => {
+                successModal.hide();
+                location.reload();
+            }, 1500); // 1.5s gives time for checkmark animation
+        });
+    });
+
+    // Explicitly hide modal & backdrop on Cancel
+    $(document).on("click", ".close-btn", function() {
+    const modalEl = document.getElementById("deleteConfirmationModal");
+    const modal = bootstrap.Modal.getInstance(modalEl);
+    if (modal) {
+        modal.hide();                     // hide the modal
+    }
+    // In case backdrop sticks around, remove it:
+    document.querySelectorAll(".modal-backdrop").forEach(bg => bg.remove());
+    });
+</script>
+
+{% endblock %}

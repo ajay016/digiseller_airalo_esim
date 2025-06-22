@@ -1,0 +1,29 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load sass_tags %}
+
+{% block css %}
+<link rel="stylesheet" type="text/css" href="{% static 'assets/css/vendors/jquery.dataTables.css' %}">
+<link rel="stylesheet" type="text/css" href="{% static 'assets/css/vendors/select.bootstrap5.css' %}">
+{% endblock css %}
+
+{% block content %}
+
+{% include 'applications/projects/components/scope-project.html' %}
+
+{% endblock %}
+
+{% block scriptcontent %} 
+
+<script src="{% static 'assets/js/chart/apex-chart/apex-chart.js' %}"></script>
+<script src="{% static 'assets/js/chart/apex-chart/stock-prices.js' %}"></script>
+<script src="{% static 'assets/js/datatable/datatables/jquery.dataTables.min.js' %}"></script>
+<script src="{% static 'assets/js/datatable/datatables/dataTables.js' %}"></script>
+<script src="{% static 'assets/js/datatable/datatables/dataTables.select.js' %}"></script>
+<script src="{% static 'assets/js/datatable/datatables/select.bootstrap5.js' %}"></script>
+<script src="{% static 'assets/js/datatable/datatables/datatable.custom.js' %}"></script>
+<script src="{% static 'assets/js/touchspin_2/custom_touchspin.js' %}"></script>
+<script src="{% static 'assets/js/custom-project.js' %}"></script>
+<script src="{% static 'assets/js/tooltip-init.js' %}"></script>
+
+{% endblock %}

@@ -1,0 +1,495 @@
+{% load static %}
+
+<!-- Container-fluid starts-->
+<div class="container-fluid main-tasks">
+  <div class="email-wrap bookmark-wrap">
+    <div class="row main-bookmark">
+      <div class="col-xl-3 box-col-6">
+        <div class="md-sidebar"><a class="btn btn-primary md-sidebar-toggle" href="#!">task filter</a>
+          <div class="md-sidebar-aside job-left-aside custom-scrollbar">
+            <div class="email-left-aside">
+              <div class="card">
+                <div class="card-body">
+                  <div class="email-app-sidebar left-bookmark task-sidebar">
+                    <div class="common-flex align-items-center">
+                      <div class="media-size-email"><img class="rounded-circle" src="{% static 'assets/images/user/user.png'  %}" alt=""></div>
+                      <div class="flex-grow-1">
+                        <h6>WILLIAM C. JENNINGS</h6>
+                        <p>william@jourrapide.com</p>
+                      </div>
+                    </div>
+                    <ul class="nav main-menu custom-scrollbar" role="tablist">
+                      <li class="nav-item">
+                        <button class="badge-light-primary btn-block btn-mail w-100" type="button" data-bs-toggle="modal" data-bs-target="#exampleModal"><i class="me-2" data-feather="check-circle"></i> New Task</button>
+                      </li>
+                      <li class="nav-item"><span class="main-title"> Views</span></li>
+                      <li><a class="active" data-bs-toggle="pill" href="#pills-created" role="tab" aria-controls="pills-created" aria-selected="true"><span class="title"> Created by me</span></a></li>
+                      <li><a class="show" data-bs-toggle="pill" href="#pills-todaytask" role="tab" aria-controls="pills-todaytask" aria-selected="false"><span class="title"> Today's Tasks</span></a></li>
+                      <li><a class="show" data-bs-toggle="pill" href="#pills-delayed" role="tab" aria-controls="pills-delayed" aria-selected="false"><span class="title"> Delayed Tasks</span></a></li>
+                      <li><a class="show" data-bs-toggle="pill" href="#pills-upcoming" role="tab" aria-controls="pills-upcoming" aria-selected="false"><span class="title">Upcoming Tasks</span></a></li>
+                      <li><a class="show" data-bs-toggle="pill" href="#pills-weekly" role="tab" aria-controls="pills-weekly" aria-selected="false"><span class="title">This week tasks</span></a></li>
+                      <li><a class="show" data-bs-toggle="pill" href="#pills-monthly" role="tab" aria-controls="pills-monthly" aria-selected="false"><span class="title">This month tasks</span></a></li>
+                      <li><a class="show" data-bs-toggle="pill" href="#pills-assigned" role="tab" aria-controls="pills-assigned" aria-selected="false"><span class="title">Assigned to me</span></a></li>
+                      <li><a class="show" data-bs-toggle="pill" href="#pills-tasks" role="tab" aria-controls="pills-tasks" aria-selected="false"><span class="title">My tasks</span></a></li>
+                      <li>
+                        <hr>
+                      </li>
+                      <li><span class="main-title"> Tags<span class="float-end"><a href="#" data-bs-toggle="modal" data-bs-target="#createtag"><i data-feather="plus-circle"></i></a></span></span></li>
+                      <li><a class="show" id="pills-notification-tab" data-bs-toggle="pill" href="#pills-notification" role="tab" aria-controls="pills-notification" aria-selected="false"><span class="title"> notification</span></a></li>
+                      <li><a class="show" id="pills-newsletter-tab" data-bs-toggle="pill" href="#pills-newsletter" role="tab" aria-controls="pills-newsletter" aria-selected="false"><span class="title"> Newsletter</span></a></li>
+                      <li><a class="show" id="pills-business-tab" data-bs-toggle="pill" href="#" role="tab" aria-selected="false"><span class="title"> Business</span></a></li>
+                      <li><a class="show" id="pills-holidays-tab" data-bs-toggle="pill" href="#" role="tab" aria-selected="false"><span class="title"> Holidays</span></a></li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="col-xl-9 col-md-12 box-col-12">
+        <div class="email-right-aside bookmark-tabcontent">
+          <div class="card email-body radius-left">
+            <div class="ps-0">
+              <div class="tab-content">
+                <div class="tab-pane fade active show" id="pills-created" role="tabpanel">
+                  <div class="card mb-0">
+                    <div class="card-header d-flex">
+                      <h5>Created by me</h5><a href="#" onclick="myFunction()"><i class="me-2" data-feather="printer"></i>Print</a>
+                    </div>
+                    <div class="card-body p-0">
+                      <div class="taskadd">
+                        <div class="table-responsive custom-scrollbar">
+                          <table class="table">
+                            <tr>
+                              <td>
+                                <h6 class="task_title_0">Client meeting</h6>
+                                <p class="project_name_0">General</p>
+                              </td>
+                              <td>
+                                <p class="task_desc_0">In our future client meeting, let's talk about the project's development, significant milestones.</p>
+                              </td>
+                              <td><a class="me-2" href="#"><i data-feather="link"></i></a><a href="#"><i data-feather="more-horizontal"></i></a></td>
+                              <td><a href="#"><i data-feather="trash-2"></i></a></td>
+                            </tr>
+                            <tr>
+                              <td>
+                                <h6 class="task_title_0">Plan webinar</h6>
+                                <p class="project_name_0">General</p>
+                              </td>
+                              <td>
+                                <p class="task_desc_0">Join us for a thought-provoking webinar on aviation developments and how they affect the sector.</p>
+                              </td>
+                              <td><a class="me-2" href="#"><i data-feather="link"></i></a><a href="#"><i data-feather="more-horizontal"></i></a></td>
+                              <td><a href="#"><i data-feather="trash-2"></i></a></td>
+                            </tr>
+                            <tr>
+                              <td>
+                                <h6 class="task_title_0">Email newsletter</h6>
+                                <p class="project_name_0">General</p>
+                              </td>
+                              <td>
+                                <p class="task_desc_0">By signing up for our email newsletter, you may be informed about our most recent news and promotions.</p>
+                              </td>
+                              <td><a class="me-2" href="#"><i data-feather="link"></i></a><a href="#"><i data-feather="more-horizontal"></i></a></td>
+                              <td><a href="#"><i data-feather="trash-2"></i></a></td>
+                            </tr>
+                            <tr>
+                              <td>
+                                <h6 class="task_title_0">Publish podcast</h6>
+                                <p class="project_name_0">General</p>
+                              </td>
+                              <td>
+                                <p class="task_desc_0">We're thrilled to announce the publication of a brand-new edition of our podcast.</p>
+                              </td>
+                              <td><a class="me-2" href="#"><i data-feather="link"></i></a><a href="#"><i data-feather="more-horizontal"></i></a></td>
+                              <td><a href="#"><i data-feather="trash-2"></i></a></td>
+                            </tr>
+                            <tr>
+                              <td>
+                                <h6 class="task_title_0">Lunch website</h6>
+                                <p class="project_name_0">General</p>
+                              </td>
+                              <td>
+                                <p class="task_desc_0">Visit our website to find a delicious selection of lunch alternatives that will please every appetite.</p>
+                              </td>
+                              <td><a class="me-2" href="#"><i data-feather="link"></i></a><a href="#"><i data-feather="more-horizontal"></i></a></td>
+                              <td><a href="#"><i data-feather="trash-2"></i></a></td>
+                            </tr>
+                            <tr>
+                              <td>
+                                <h6 class="task_title_0">Client meeting</h6>
+                                <p class="project_name_0">General</p>
+                              </td>
+                              <td>
+                                <p class="task_desc_0">Getting ready to meet with the customer to go through project updates, objectives, and next actions.</p>
+                              </td>
+                              <td><a class="me-2" href="#"><i data-feather="link"></i></a><a href="#"><i data-feather="more-horizontal"></i></a></td>
+                              <td><a href="#"><i data-feather="trash-2"></i></a></td>
+                            </tr>
+                            <tr>
+                              <td>
+                                <h6 class="task_title_0">Plan webinar</h6>
+                                <p class="project_name_0">General</p>
+                              </td>
+                              <td>
+                                <p class="task_desc_0">Join us for a thought-provoking webinar on aviation developments and how they affect the sector.</p>
+                              </td>
+                              <td><a class="me-2" href="#"><i data-feather="link"></i></a><a href="#"><i data-feather="more-horizontal"></i></a></td>
+                              <td><a href="#"><i data-feather="trash-2"></i></a></td>
+                            </tr>
+                            <tr>
+                              <td>
+                                <h6 class="task_title_0">Email newsletter</h6>
+                                <p class="project_name_0">General</p>
+                              </td>
+                              <td>
+                                <p class="task_desc_0">By signing up for our email newsletter, you may be informed about our most recent news and promotions.</p>
+                              </td>
+                              <td><a class="me-2" href="#"><i data-feather="link"></i></a><a href="#"><i data-feather="more-horizontal"></i></a></td>
+                              <td><a href="#"><i data-feather="trash-2"></i></a></td>
+                            </tr>
+                          </table>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div class="fade tab-pane" id="pills-todaytask" role="tabpanel">
+                  <div class="card mb-0">
+                    <div class="card-header d-flex">
+                      <h5>Today's Tasks</h5><a href="#"><i class="me-2" data-feather="printer"></i>Print</a>
+                    </div>
+                    <div class="card-body">
+                      <div class="details-bookmark text-center">
+                        <div class="row" id="favouriteData"></div>
+                        <div class="no-favourite"><span>No task due today.</span></div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div class="fade tab-pane" id="pills-delayed" role="tabpanel">
+                  <div class="card mb-0">
+                    <div class="card-header d-flex">
+                      <h5>Delayed Tasks</h5><a href="#"><i class="me-2" data-feather="printer"></i>Print</a>
+                    </div>
+                    <div class="card-body">
+                      <div class="details-bookmark text-center"><span>No tasks found.</span></div>
+                    </div>
+                  </div>
+                </div>
+                <div class="fade tab-pane" id="pills-upcoming" role="tabpanel">
+                  <div class="card mb-0">
+                    <div class="card-header d-flex">
+                      <h5>Upcoming Tasks</h5><a href="#"><i class="me-2" data-feather="printer"></i>Print</a>
+                    </div>
+                    <div class="card-body">
+                      <div class="details-bookmark text-center"><span>No tasks found.</span></div>
+                    </div>
+                  </div>
+                </div>
+                <div class="fade tab-pane" id="pills-weekly" role="tabpanel">
+                  <div class="card mb-0">
+                    <div class="card-header d-flex">
+                      <h5>This Week Tasks</h5><a href="#"><i class="me-2" data-feather="printer"></i>Print</a>
+                    </div>
+                    <div class="card-body">
+                      <div class="details-bookmark text-center"><span>No tasks found.</span></div>
+                    </div>
+                  </div>
+                </div>
+                <div class="fade tab-pane" id="pills-monthly" role="tabpanel">
+                  <div class="card mb-0">
+                    <div class="card-header d-flex">
+                      <h5>This Month Tasks</h5><a href="#"><i class="me-2" data-feather="printer"></i>Print</a>
+                    </div>
+                    <div class="card-body">
+                      <div class="details-bookmark text-center"><span>No tasks found.</span></div>
+                    </div>
+                  </div>
+                </div>
+                <div class="fade tab-pane" id="pills-assigned" role="tabpanel">
+                  <div class="card mb-0">
+                    <div class="card-header d-flex">
+                      <h5>Assigned to me</h5><a href="#" onclick="myFunction()"><i class="me-2" data-feather="printer"></i>Print</a>
+                    </div>
+                    <div class="card-body p-0">
+                      <div class="taskadd">
+                        <div class="table-responsive custom-scrollbar">
+                          <table class="table">
+                            <tr>
+                              <td>
+                                <h6 class="task_title_0">Task name</h6>
+                                <p class="project_name_0">General</p>
+                              </td>
+                              <td>
+                                <p class="task_desc_0">A task is a particular assignment or responsibility that must be finished by a certain date or deadline. </p>
+                              </td>
+                              <td><a class="me-2" href="#"><i data-feather="link"></i></a><a href="#"><i data-feather="more-horizontal"></i></a></td>
+                              <td><a href="#"><i data-feather="trash-2"></i></a></td>
+                            </tr>
+                            <tr>
+                              <td>
+                                <h6 class="task_title_0">Task name</h6>
+                                <p class="project_name_0">General</p>
+                              </td>
+                              <td>
+                                <p class="task_desc_0">Well-structured and organized task list in order to manage and accomplish jobs successfully. </p>
+                              </td>
+                              <td><a class="me-2" href="#"><i data-feather="link"></i></a><a href="#"><i data-feather="more-horizontal"></i></a></td>
+                              <td><a href="#"><i data-feather="trash-2"></i></a></td>
+                            </tr>
+                            <tr>
+                              <td>
+                                <h6 class="task_title_0">Task name</h6>
+                                <p class="project_name_0">General</p>
+                              </td>
+                              <td>
+                                <p class="task_desc_0">A task is a particular assignment or responsibility that must be finished by a certain date or deadline.</p>
+                              </td>
+                              <td><a class="me-2" href="#"><i data-feather="link"></i></a><a href="#"><i data-feather="more-horizontal"></i></a></td>
+                              <td><a href="#"><i data-feather="trash-2"></i></a></td>
+                            </tr>
+                            <tr>
+                              <td>
+                                <h6 class="task_title_0">Task name</h6>
+                                <p class="project_name_0">General</p>
+                              </td>
+                              <td>
+                                <p class="task_desc_0">Well-structured and organized task list in order to manage and accomplish jobs successfully. </p>
+                              </td>
+                              <td><a class="me-2" href="#"><i data-feather="link"></i></a><a href="#"><i data-feather="more-horizontal"></i></a></td>
+                              <td><a href="#"><i data-feather="trash-2"></i></a></td>
+                            </tr>
+                            <tr>
+                              <td>
+                                <h6 class="task_title_0">Task name</h6>
+                                <p class="project_name_0">General</p>
+                              </td>
+                              <td>
+                                <p class="task_desc_0">A task is a particular assignment or responsibility that must be finished by a certain date or deadline.</p>
+                              </td>
+                              <td><a class="me-2" href="#"><i data-feather="link"></i></a><a href="#"><i data-feather="more-horizontal"></i></a></td>
+                              <td><a href="#"><i data-feather="trash-2"></i></a></td>
+                            </tr>
+                          </table>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div class="fade tab-pane" id="pills-tasks" role="tabpanel">
+                  <div class="card mb-0">
+                    <div class="card-header d-flex">
+                      <h5>My Tasks</h5><a href="#"><i class="me-2" data-feather="printer"></i>Print</a>
+                    </div>
+                    <div class="card-body p-0">
+                      <div class="taskadd">
+                        <div class="table-responsive custom-scrollbar">
+                          <table class="table">
+                            <tr>
+                              <td>
+                                <h6 class="task_title_0">Task name</h6>
+                                <p class="project_name_0">General</p>
+                              </td>
+                              <td>
+                                <p class="task_desc_0">Well-structured and organized task list in order to manage and accomplish jobs successfully. </p>
+                              </td>
+                              <td><a class="me-2" href="#"><i data-feather="link"></i></a><a href="#"><i data-feather="more-horizontal"></i></a></td>
+                              <td><a href="#"><i data-feather="trash-2"></i></a></td>
+                            </tr>
+                            <tr>
+                              <td>
+                                <h6 class="task_title_0">Task name</h6>
+                                <p class="project_name_0">General</p>
+                              </td>
+                              <td>
+                                <p class="task_desc_0">A task is a particular assignment or responsibility that must be finished by a certain date or deadline.</p>
+                              </td>
+                              <td><a class="me-2" href="#"><i data-feather="link"></i></a><a href="#"><i data-feather="more-horizontal"></i></a></td>
+                              <td><a href="#"><i data-feather="trash-2"></i></a></td>
+                            </tr>
+                            <tr>
+                              <td>
+                                <h6 class="task_title_0">Task name</h6>
+                                <p class="project_name_0">General</p>
+                              </td>
+                              <td>
+                                <p class="task_desc_0">A task is a particular assignment or responsibility that must be finished by a certain date or deadline. </p>
+                              </td>
+                              <td><a class="me-2" href="#"><i data-feather="link"></i></a><a href="#"><i data-feather="more-horizontal"></i></a></td>
+                              <td><a href="#"><i data-feather="trash-2"></i></a></td>
+                            </tr>
+                            <tr>
+                              <td>
+                                <h6 class="task_title_0">Task name</h6>
+                                <p class="project_name_0">General</p>
+                              </td>
+                              <td>
+                                <p class="task_desc_0">Well-structured and organized task list in order to manage and accomplish jobs successfully. </p>
+                              </td>
+                              <td><a class="me-2" href="#"><i data-feather="link"></i></a><a href="#"><i data-feather="more-horizontal"></i></a></td>
+                              <td><a href="#"><i data-feather="trash-2"></i></a></td>
+                            </tr>
+                            <tr>
+                              <td>
+                                <h6 class="task_title_0">Task name</h6>
+                                <p class="project_name_0">General</p>
+                              </td>
+                              <td>
+                                <p class="task_desc_0">A task is a particular assignment or responsibility that must be finished by a certain date or deadline.</p>
+                              </td>
+                              <td><a class="me-2" href="#"><i data-feather="link"></i></a><a href="#"><i data-feather="more-horizontal"></i></a></td>
+                              <td><a href="#"><i data-feather="trash-2"></i></a></td>
+                            </tr>
+                          </table>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div class="fade tab-pane" id="pills-notification" role="tabpanel">
+                  <div class="card mb-0">
+                    <div class="card-header d-flex">
+                      <h6 class="mb-0">Notification</h6><a href="#"><i class="me-2" data-feather="printer"></i>Print</a>
+                    </div>
+                    <div class="card-body">
+                      <div class="details-bookmark text-center"><span>No tasks found.</span></div>
+                    </div>
+                  </div>
+                </div>
+                <div class="fade tab-pane" id="pills-newsletter" role="tabpanel">
+                  <div class="card mb-0">
+                    <div class="card-header d-flex">
+                      <h6 class="mb-0">Newsletter</h6><a href="#"><i class="me-2" data-feather="printer"></i>Print</a>
+                    </div>
+                    <div class="card-body">
+                      <div class="details-bookmark text-center"><span>No tasks found.</span></div>
+                    </div>
+                  </div>
+                </div>
+                <div class="modal fade modal-bookmark" id="createtag" tabindex="-1" role="dialog" aria-hidden="true">
+                  <div class="modal-dialog modal-lg" role="document">
+                    <div class="modal-content">
+                      <div class="modal-header">
+                        <h5 class="modal-title">Create Tag</h5>
+                        <button class="btn-close" type="button" data-bs-dismiss="modal" aria-label="Close"></button>
+                      </div>
+                      <div class="modal-body">
+                        <form class="form-bookmark needs-validation" novalidate="">
+                          <div class="row">
+                            <div class="mb-3 mt-0 col-md-12">
+                              <label>Tag Name</label>
+                              <input class="form-control" type="text" required="" autocomplete="off">
+                            </div>
+                            <div class="mt-0 col-md-12">
+                              <label>Tag color</label>
+                              <input class="form-color d-block" type="color" value="#7366FF">
+                            </div>
+                          </div>
+                          <button class="btn btn-secondary" type="button">Save</button>
+                          <button class="btn btn-primary" type="button" data-bs-dismiss="modal">Cancel</button>
+                        </form>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="modal fade modal-bookmark" id="exampleModal" tabindex="-1" role="dialog" aria-labelledby="exampleModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg" role="document">
+      <div class="modal-content custom-input">
+        <div class="modal-header">
+          <h5 class="modal-title" id="exampleModalLabel">Add Task</h5>
+          <button class="btn-close" type="button" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <form class="form-bookmark needs-validation" id="bookmark-form" novalidate="">
+            <div class="row">
+              <div class="mb-3 mt-0 col-md-12">
+                <label for="task-title">Task Title</label>
+                <input class="form-control" id="task-title" type="text" required="" autocomplete="off">
+                <div class="valid-feedback">Looks good!</div>
+                <div class="invalid-feedback">Please enter a task title.</div>
+              </div>
+              <div class="mb-3 mt-0 col-md-12">
+                <label for="sub-task">Sub task</label>
+                <input class="form-control" id="sub-task" type="text" required="" autocomplete="off">
+                <div class="valid-feedback">Looks good!</div>
+                <div class="invalid-feedback">Please enter a sub task.</div>
+              </div>
+              <div class="mb-3 mt-0 col-md-12">
+                <div class="d-flex date-details">
+                  <div class="d-inline-block">
+                    <label class="d-block mb-0" for="chk-ani">
+                      <input class="checkbox_animated" id="chk-ani" type="checkbox">Remind on
+                    </label>
+                  </div>
+                  <div class="d-inline-block">
+                    <input class="datepicker-here form-control" type="text" data-language="en" placeholder="Date">
+                  </div>
+                  <div class="d-inline-block">
+                    <select class="form-control">
+                      <option>7:00 am</option>
+                      <option>7:30 am</option>
+                      <option>8:00 am</option>
+                      <option>8:30 am</option>
+                      <option>9:00 am</option>
+                      <option>9:30 am</option>
+                      <option>10:00 am</option>
+                      <option>10:30 am</option>
+                      <option>11:00 am</option>
+                      <option>11:30 am</option>
+                      <option>12:00 pm</option>
+                      <option>12:30 pm</option>
+                      <option>1:00 pm</option>
+                      <option>2:00 pm</option>
+                      <option>3:00 pm</option>
+                      <option>4:00 pm</option>
+                      <option>5:00 pm</option>
+                      <option>6:00 pm</option>
+                    </select>
+                  </div>
+                  <div class="d-inline-block">
+                    <label class="d-block mb-0" for="chk-ani1">
+                      <input class="checkbox_animated" id="chk-ani1" type="checkbox">Notification
+                    </label>
+                  </div>
+                  <div class="d-inline-block">
+                    <label class="d-block mb-0" for="chk-ani2">
+                      <input class="checkbox_animated" id="chk-ani2" type="checkbox">Mail
+                    </label>
+                  </div>
+                </div>
+              </div>
+              <div class="mb-3 mt-0 col-md-6">
+                <select class="selectpicker search-picker" aria-label="Group" data-live-search="true">
+                  <option value="task" selected>My Task</option>
+                </select>
+              </div>
+              <div class="mb-3 mt-0 col-md-6">
+                <select class="selectpicker search-picker" aria-label="Group" data-live-search="true">
+                  <option value="general" selected>General</option>
+                </select>
+              </div>
+              <div class="mb-3 col-md-12 my-0">
+                <textarea class="form-control" required="" autocomplete="off">  </textarea>
+                <div class="valid-feedback">Looks good!</div>
+                <div class="invalid-feedback">Please enter a description.</div>
+              </div>
+            </div>
+            <input id="index_var" type="hidden" value="6">
+            <button class="btn btn-secondary" id="Bookmark" onclick="submitBookMark()" type="submit">Save</button>
+            <button class="btn btn-primary" type="button" data-bs-dismiss="modal">Cancel</button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<!-- Container-fluid Ends-->

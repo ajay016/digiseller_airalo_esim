@@ -1,0 +1,237 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load sass_tags %}
+
+{% block custom_css %}
+{% comment %} <link rel="stylesheet" type="text/css" href="{% static 'assets/css/vendors/intltelinput.min.css' %}">
+<link rel="stylesheet" type="text/css" href="{% static 'assets/css/vendors/tagify.css' %}"> {% endcomment %}
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<link rel="stylesheet" href="{% static 'assets/css/select2_custom_style.css' %}">
+
+<style>
+    .custom-large-btn:hover{
+        background-color: #4a3dd9 !important;
+    }
+
+    .custom-delete-btn:hover{
+        background-color: #ff0000 !important;
+    }
+
+    .success-message{
+        background-color: #10cf1057;
+        color: #096009;
+    }
+
+    .error-message{
+        background-color: #ff0d0d78 !important;
+        color: #890000;
+    }
+
+    .edit{
+        cursor: pointer;
+    }
+
+    .edit-icon{
+        cursor: pointer;
+        font-size: 22px !important;
+        transition: 0.3s ease-in-out;
+    }
+
+    .edit-icon:hover{
+        transform: scale(1.15);
+    }
+
+    .delete-icon{
+        cursor: pointer;
+        font-size: 22px !important;
+        transition: 0.3s ease-in-out;
+    }
+
+    .delete-icon:hover{
+        transform: scale(1.15);
+    }
+
+    .delete{
+        cursor: pointer;
+    }
+
+    .error-success-div {
+        max-height: 0;
+        opacity: 0;
+        padding: 10px 20px;
+        border-radius: 20px;
+        overflow: hidden;
+        transition: max-height 0.3s ease, opacity 0.3s ease;
+    }
+
+    .error-success-div.show {
+        /* adjust 200px to be comfortably larger than your tallest message */
+        max-height: 200px;
+        opacity: 1;
+    }
+    
+    .required-fields-mark{
+        color: red;
+    }
+</style>
+{% endblock custom_css %}
+
+{% block content %}
+
+<div class="container-fluid">
+    <div class="row justify-content-center">
+        <div class="col-md-8 col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h1>Add a New User Account</h1>
+                </div>
+                <form class="form theme-form dark-inputs" method="POST">
+                    {% csrf_token %}
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6 col-12">
+                                <div class="mb-3">
+                                <label class="form-label" for="email">Email Address</label><span class="required-fields-mark">*</span>
+                                <input class="form-control btn-pill" id="email" name="email" type="email" placeholder="name@example.com">
+                                </div>
+                            </div>
+
+                            <div class="col-md-6 col-12">
+                                <div class="mb-3">
+                                <label class="form-label" for="password">Password</label><span class="required-fields-mark">*</span>
+                                <input class="form-control btn-pill" id="password" name="password" type="password" placeholder="Password">
+                                </div>
+                            </div>
+
+                            <div class="col-md-6 col-12">
+                                <label class="form-label" for="key">Select Region</label><span class="required-fields-mark">*</span>
+                                <select class="select2" name="region">
+                                    <option value="">Select a region</option>
+                                    {% for region in regions %}
+                                        <option value="{{ region.id }}">{{ region.name }}</option>
+                                    {% endfor %}
+                                </select>
+
+                            </div>
+
+                            <div class="col-md-6 col-12">
+                                <div class="mb-3">
+                                    <label class="form-label" for="key">Key</label><span class="required-fields-mark">*</span>
+                                    <input class="form-control btn-pill" id="key" name="key" type="text" placeholder="Enter the key">
+                                </div>
+                            </div>
+
+                            <div class="col-md-6 col-12">
+                                <div class="mb-3">
+                                <label class="form-label" for="name">Name</label>
+                                <input class="form-control btn-pill" id="name" name="name" type="text" placeholder="Enter the name of the customer">
+                                </div>
+                            </div>
+
+                            <div class="col-md-6 col-12">
+                                <div class="mb-3">
+                                <label class="form-label" for="phone">Phone</label>
+                                <input class="form-control btn-pill" id="phone" name="phone" type="text" placeholder="Enter the phone number">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="padding-left: 20px; padding-right: 20px; margin-bottom: 10px;">
+                        <div class="error-success-div p-6"></div>
+                    </div>
+
+                    <div class="card-footer text-end">
+                        <button class="btn btn-primary me-3" type="submit">Submit</button>
+                        <input class="btn btn-light" type="reset" value="Cancel">
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scriptcontent %} 
+
+{% comment %} <script src="{% static 'assets/js/select2/tagify.js' %}"></script>
+<script src="{% static 'assets/js/select2/tagify.polyfills.min.js' %}"></script>
+<script src="{% static 'assets/js/select2/intltelinput.min.js' %}"></script>
+<script src="{% static 'assets/js/select2/telephone-input.js' %}"></script>
+<script src="{% static 'assets/js/select2/custom-inputsearch.js' %}"></script>
+<script src="{% static 'assets/js/select2/select3-custom.js' %}"></script> {% endcomment %}
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<script src="{% static 'assets/js/height-equal.js' %}"></script>
+
+
+<script>
+    $(document).ready(function() {
+        $('.select2').select2();
+    });
+</script>
+
+<script>
+    function showMessage(type, message) {
+        const div = $(".error-success-div");
+
+        // routine to set text + color and then expand
+        function expand() {
+            div
+            .removeClass("error-message success-message")
+            .addClass(type + "-message")
+            .text(message);
+
+            // small delay so the browser “sees” the reset
+            requestAnimationFrame(() => {
+            div.addClass("show");
+            });
+
+            if (type === "success") {
+            setTimeout(() => location.reload(), 2000);
+            }
+        }
+
+        if (div.hasClass("show")) {
+            // 1. If already shown, collapse first
+            div.removeClass("show");
+
+            // 2. Wait for collapse transition to finish, then expand
+            div.one("transitionend", expand);
+        } else {
+            // first time: just expand
+            expand();
+        }
+    }
+
+    $(document).ready(function () {
+        $('form').on('submit', function (e) {
+            e.preventDefault();
+
+            const formData = new FormData(this);
+
+            fetch("{% url 'add_user_account' %}", {
+                method: "POST",
+                headers: {
+                    "X-Requested-With": "XMLHttpRequest",
+                    "X-CSRFToken": "{{ csrf_token }}",
+                },
+                body: formData,
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showMessage(data.status, data.message);
+                    $('form')[0].reset();  // Clear form
+                } else {
+                    alert("Error: " + data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert("An unexpected error occurred.");
+            });
+        });
+    });
+</script>
+{% endblock %}

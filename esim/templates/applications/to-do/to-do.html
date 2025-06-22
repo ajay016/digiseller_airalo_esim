@@ -1,0 +1,19 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load sass_tags %}
+
+{% block css %}
+<link rel="stylesheet" type="text/css" href="{% static 'assets/css/vendors/todo.css' %}">
+{% endblock css %}
+
+{% block content %}
+
+{% include 'applications/to-do/components/to-do.html' %}
+
+{% endblock %}
+
+{% block scriptcontent %} 
+
+<script src="{% static 'assets/js/todo/todo.js' %}"></script>
+
+{% endblock %}

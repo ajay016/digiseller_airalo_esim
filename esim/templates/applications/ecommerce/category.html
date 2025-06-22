@@ -1,0 +1,31 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load sass_tags %}
+
+{% block css %}
+<link rel="stylesheet" type="text/css" href="{% static 'assets/css/vendors/quill.snow.css' %}">
+<link rel="stylesheet" type="text/css" href="{% static 'assets/css/vendors/jquery.dataTables.css' %}">
+<link rel="stylesheet" type="text/css" href="{% static 'assets/css/vendors/select.bootstrap5.css' %}">
+<link rel="stylesheet" type="text/css" href="{% static 'assets/css/vendors/sweetalert2.css' %}">
+{% endblock css %}
+
+{% block content %}
+
+{% include 'applications/ecommerce/components/category.html' %}
+
+{% endblock %}
+
+{% block scriptcontent %} 
+
+<script src="{% static 'assets/js/datatable/datatables/jquery.dataTables.min.js' %}"></script>
+<script src="{% static 'assets/js/datatable/datatables/dataTables.js' %}"></script>
+<script src="{% static 'assets/js/datatable/datatables/dataTables.select.js' %}"></script>
+<script src="{% static 'assets/js/datatable/datatables/select.bootstrap5.js' %}"></script>
+<script src="{% static 'assets/js/datatable/datatables/datatable.custom.js' %}"></script>
+<script src="{% static 'assets/js/sweet-alert/sweetalert.min.js' %}"></script>
+<script src="{% static 'assets/js/trash_popup.js' %}"></script>
+<script src="{% static 'assets/js/editors/quill.js' %}"></script>
+<script src="{% static 'assets/js/custom_category.js' %}"></script>
+<script src="{% static 'assets/js/modalpage/validation-modal.js' %}"></script>
+
+{% endblock %}
