@@ -5,9 +5,11 @@ from django.utils import timezone
 from django.core.validators import validate_email
 from django.core.exceptions import ValidationError
 from django.contrib.auth.decorators import login_required
+from django.views.decorators.http import require_GET, require_POST
 from django.contrib.auth.forms import AuthenticationForm
 from django.contrib.auth.models import User
 from django.contrib.auth import login,logout,authenticate
+from django.http import JsonResponse, HttpResponseBadRequest
 from rest_framework.decorators import api_view
 from django.http import JsonResponse
 from rest_framework import status
@@ -18,7 +20,8 @@ from rest_framework.response import Response
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
 from django.db.models import Count
-
+from django.views.decorators.csrf import csrf_exempt
+import base64
 from django.conf import settings
 import requests
 import hashlib
@@ -166,7 +169,7 @@ def save_product_with_variants(prod_data):
 
     # Create new variants
     options = fetch_product_variants(product.id_goods)
-    first_option = options[0] if options else None
+    first_option = next((opt for opt in options if opt.get("type") == "radio"), None)
 
     if first_option:
         for variant in first_option.get("variants", []):
@@ -230,3 +233,150 @@ def variant_duplicate_texts(request):
     }
 
     return Response(response_data, status=status.HTTP_200_OK)
+
+
+
+@require_GET
+def digiseller_webhook_test(request):
+    # Dummy values to simulate Digiseller's behavior
+    password = "your_webhook_password".lower()
+    ID_I = 256070005
+    ID_D = 3498404
+    AMOUNT = 19.99
+    CURRENCY = "WMZ"
+    EMAIL = "ajayghosh28@gmail.com"
+    DATE = "2025-06-24 15:30:00"
+    THROUGH = base64.b64encode(b"user_id=42&tracking_id=abc123").decode()
+    AGENT = "test-agent"
+    CARTUID = "cart-uid-001"
+    ISMYPRODUCT = True
+    IP = "192.168.1.100"
+
+    # SHA256 hash of "password;ID_I;ID_D"
+    hash_string = f"{password};{ID_I};{ID_D}"
+    SHA256 = hashlib.sha256(hash_string.encode()).hexdigest()
+
+    payload = {
+        "ID_I": ID_I,
+        "ID_D": ID_D,
+        "Amount": AMOUNT,
+        "Currency": CURRENCY,
+        "Email": EMAIL,
+        "Date": DATE,
+        "SHA256": SHA256,
+        "Through": THROUGH,
+        "IP": IP,
+        "Agent": AGENT,
+        "CartUID": CARTUID,
+        "IsMyProduct": ISMYPRODUCT
+    }
+
+    # Change this to your real callback URL in production
+    callback_url = request.build_absolute_uri("/digiseller/webhook-callback/")
+
+    try:
+        response = requests.post(callback_url, json=payload, timeout=10)
+        return JsonResponse({
+            "status": "Test payload sent",
+            "sent_payload": payload,
+            "response_status_code": response.status_code,
+            "response_body": response.text
+        })
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
+    
+    
+    
+# @csrf_exempt
+# @require_POST
+# def digiseller_webhook_callback(request):
+#     try:
+#         data = json.loads(request.body.decode("utf-8"))
+#         print("🚀 Received Webhook Data:")
+#         for key, value in data.items():
+#             print(f"{key}: {value}")
+        
+#         # Future logic will go here (order validation, user linking, etc.)
+#         return JsonResponse({"status": "Webhook received", "received_data": data})
+    
+#     except json.JSONDecodeError:
+#         return HttpResponseBadRequest("Invalid JSON")
+
+
+@csrf_exempt
+@require_POST
+def digiseller_webhook_callback(request):
+    # 1) Parse incoming JSON
+    try:
+        data = json.loads(request.body.decode("utf-8"))
+    except json.JSONDecodeError:
+        return HttpResponseBadRequest("Invalid JSON")
+
+    order_id   = data.get("ID_I")
+    product_id = data.get("ID_D")
+
+    print("🚀 Received Webhook Data:", data)
+
+    # 2) If product not in our DB, skip
+    if not DigisellerProduct.objects.filter(id_goods=product_id).exists():
+        print("❌ Product not found, skipping.")
+        return JsonResponse({"status": "no action needed"})
+
+    # 3) Fetch the full purchase-info from Digiseller
+    token        = get_digiseller_token()
+    purchase_url = f"https://api.digiseller.com/api/purchase/info/{order_id}?token={token}"
+    resp         = requests.get(purchase_url, timeout=10)
+
+    if resp.status_code != 200:
+        return JsonResponse(
+            {"error": f"Digiseller info API returned {resp.status_code}"}, 
+            status=502
+        )
+
+    content = resp.json().get("content", {})
+
+    # 4) Validate that the Digiseller API's item_id matches our product_id
+    if content.get("item_id") != product_id:
+        print(f"❌ item_id ({content.get('item_id')}) != product_id ({product_id}), skipping.")
+        return JsonResponse({"status": "no action needed"})
+
+    # 5) Only proceed if unique_code_state.state == 1
+    if content.get("unique_code_state", {}).get("state") != 1:
+        print("❌ unique_code_state.state != 1, skipping.")
+        return JsonResponse({"status": "no action needed"})
+
+    # 6) Now process selected variants
+    product    = DigisellerProduct.objects.get(id_goods=product_id)
+    buyer_info = content.get("buyer_info", {})
+
+    for opt in content.get("options", []):
+        user_data_id = opt.get("user_data_id")
+
+        try:
+            variant = DigisellerVariant.objects.get(
+                product=product,
+                variant_value=user_data_id
+            )
+        except DigisellerVariant.DoesNotExist:
+            continue
+
+        airalo_pkg = variant.airalo_package
+        if not airalo_pkg:
+            continue
+
+        # 🔍 For now, just print:
+        print("▶️ Airalo package ID:", airalo_pkg.package_id)
+
+        # Override buyer email for testing:
+        email = buyer_info.get("email")
+        # email = "ajayghosh28@gmail.com"   # ← uncomment to force
+
+        print("▶️ Buyer info:", {
+            "email": email,
+            "ip":     buyer_info.get("ip_address"),
+            "method": buyer_info.get("payment_method"),
+        })
+
+        # Optional: persist to your DigisellerOrder model here…
+
+    return JsonResponse({"status": "processed"})

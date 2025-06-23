@@ -191,8 +191,8 @@ class DigisellerVariantAdmin(admin.ModelAdmin):
         'product', 'variant_value', 'text', 'default', 'visible',
         'modify', 'modify_value', 'modify_value_default', 'modify_type', 'airalo_package'
     )
-    list_filter = ('visible', 'default', 'modify_type')
-    search_fields = ('product__name_goods', 'text')
+    list_filter = ('visible', 'default', 'modify_type', 'variant_value')
+    search_fields = ('product__name_goods', 'text', 'variant_value')
     
     
 @admin.register(DigisellerFailedEntry)
