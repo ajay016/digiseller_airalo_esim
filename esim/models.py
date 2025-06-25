@@ -278,3 +278,116 @@ class DigisellerFailedEntry(models.Model):
         return f"[{self.timestamp:%Y-%m-%d %H:%M:%S}] {self.reason[:50]}"
     
     
+class AiraloOrder(models.Model):
+    """A single order returned by POST /v2/orders."""
+    airalo_id       = models.PositiveIntegerField(unique=True)  # "id" in response
+    code            = models.CharField(max_length=32)
+    currency        = models.CharField(max_length=8)
+    package_id      = models.CharField(max_length=128)
+    quantity        = models.PositiveIntegerField()
+    type            = models.CharField(max_length=16)
+    description     = models.CharField(max_length=255)
+    esim_type       = models.CharField(max_length=32, blank=True, null=True)
+    validity        = models.PositiveIntegerField(blank=True, null=True)
+    package_title   = models.CharField(max_length=128)
+    data            = models.CharField(max_length=32, blank=True, null=True)
+    price           = models.DecimalField(max_digits=10, decimal_places=2)
+    created_at_api  = models.DateTimeField()
+    manual_installation = models.TextField(blank=True, null=True)
+    qrcode_installation  = models.TextField(blank=True, null=True)
+    installation_guides  = models.JSONField(blank=True, null=True)
+    net_price       = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
+    raw_payload     = models.JSONField()
+
+    created_at      = models.DateTimeField(default=timezone.now)
+
+    def __str__(self):
+        return f"AiraloOrder {self.code}"
+
+
+class AiraloSim(models.Model):
+    """One SIM inside an Airalo order."""
+    airalo_order = models.ForeignKey(
+        AiraloOrder, on_delete=models.CASCADE, related_name="sims"
+    )
+    sim_id       = models.PositiveIntegerField(unique=True)      # "id" in response.sims
+    iccid        = models.CharField(max_length=22)
+    lpa          = models.CharField(max_length=128)
+    qrcode       = models.CharField(max_length=256)
+    qrcode_url   = models.URLField()
+    direct_apple_installation_url = models.URLField(blank=True, null=True)
+    apn_type     = models.CharField(max_length=32, blank=True, null=True)
+    apn_value    = models.CharField(max_length=64, blank=True, null=True)
+    is_roaming   = models.BooleanField(default=False)
+    raw_payload  = models.JSONField()
+
+    created_at   = models.DateTimeField(default=timezone.now)
+
+    def __str__(self):
+        return f"SIM {self.iccid}"
+    
+    
+
+class DigisellerOrder(models.Model):
+    STATUS_CHOICES = [
+        ('received', 'Received'),
+        ('invalid',  'Invalid / Skipped'),
+        ('processing', 'Processing'),
+        ('failed',   'Failed'),
+        ('completed','Completed'),
+    ]
+
+    # Raw webhook fields
+    order_id       = models.PositiveIntegerField(unique=True)        # ID_I
+    product        = models.ForeignKey(
+                        'DigisellerProduct',
+                        on_delete=models.PROTECT,
+                        related_name='orders'
+                    )
+    variant        = models.ForeignKey(
+                        'DigisellerVariant',
+                        on_delete=models.PROTECT,
+                        related_name='orders'
+                    )
+    airalo_package = models.ForeignKey(
+                        'Package',
+                        on_delete=models.PROTECT,
+                        related_name='orders'
+                    )
+    # Buyer info
+    buyer_email           = models.EmailField(null=True, blank=True)
+    buyer_ip              = models.GenericIPAddressField(null=True, blank=True)
+    buyer_payment_method  = models.CharField(max_length=50, blank=True, null=True)
+
+    # Full Digiseller purchase-info snapshot
+    purchase_amount       = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    purchase_currency     = models.CharField(max_length=10, blank=True, null=True)
+    purchase_date         = models.DateTimeField(null=True, blank=True)
+    invoice_state         = models.IntegerField(null=True, blank=True)
+    raw_payload           = models.JSONField()  # store the entire content dict for auditing
+    quantity = models.DecimalField(max_digits=10, decimal_places=2, default=1.0)
+    
+    airalo_order      = models.OneToOneField(
+                            AiraloOrder, on_delete=models.SET_NULL,
+                            null=True, blank=True, related_name='digiseller_order')
+
+    # Cart & tracking
+    cart_uid              = models.CharField(max_length=100, blank=True, null=True)
+    is_my_product         = models.BooleanField(default=True)
+
+    # Processing
+    status                = models.CharField(max_length=20, choices=STATUS_CHOICES, default='received')
+    error_message         = models.TextField(blank=True, null=True)
+
+    created_at            = models.DateTimeField(default=timezone.now)
+    updated_at            = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = "Digiseller Order"
+        verbose_name_plural = "Digiseller Orders"
+
+    def __str__(self):
+        return f"Order {self.order_id} ({self.get_status_display()})"
+    
+    

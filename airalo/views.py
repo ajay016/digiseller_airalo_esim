@@ -18,16 +18,18 @@ from rest_framework.response import Response
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
 from django.db.models import Count
-
+from celery import shared_task
 from django.conf import settings
 import requests
+import traceback
+import logging
 import hashlib
 import time
 import json
 import re
 from esim.models import *
 
-
+logger = logging.getLogger(__name__)  # Optional: use logger if configured
 
 
 
@@ -220,3 +222,240 @@ def sync_airalo_data(request):
 def unique_operator_count(request):
     unique_count = Package.objects.values('operator').distinct().count()
     return Response({'unique_operator_count': unique_count}, status=status.HTTP_200_OK)
+
+
+
+# Celery task in the server
+@api_view(['GET'])
+@permission_classes([AllowAny])  # <-- use this instead
+def unique_operator_count(request):
+    unique_count = Package.objects.values('operator').distinct().count()
+    return Response({'unique_operator_count': unique_count}, status=status.HTTP_200_OK)
+
+
+
+# Celery task in the server
+# @shared_task(bind=True, max_retries=3, default_retry_delay=60)
+# def purchase_airalo_sim(self, digiseller_order_id):
+#     try:
+#         order = DigisellerOrder.objects.select_related(
+#             "airalo_package"
+#         ).get(pk=digiseller_order_id)
+#     except DigisellerOrder.DoesNotExist:
+#         return
+
+#     order.status = "processing"
+#     order.save(update_fields=["status"])
+
+#     payload = {
+#         "quantity":     str(order.quantity),
+#         "package_id":   order.airalo_package.package_id,
+#         "type":         "sim",
+#         "description":  f"{order.quantity} {order.airalo_package.package_id}",
+#         "brand_settings_name": "",
+#     }
+    
+#     api_token = get_airalo_token()
+#     headers = {
+#         "Authorization": f"Bearer {api_token}",
+#         "Accept": "application/json",
+#     }
+
+#     try:
+#         r = requests.post(
+#             f"{settings.AIRALO_BASE_API_URL}/v2/orders",
+#             headers=headers,
+#             data=payload,                # Airalo expects multipart/form-data
+#             timeout=15,
+#         )
+#     except Exception as exc:
+#         order.status = "failed"
+#         order.error_message = str(exc)
+#         order.save(update_fields=["status", "error_message"])
+#         raise self.retry(exc=exc)
+
+#     if r.status_code != 200:
+#         order.status = "failed"
+#         order.error_message = f"HTTP {r.status_code}: {r.text}"
+#         order.save(update_fields=["status", "error_message"])
+#         return
+
+#     data = r.json()["data"]
+
+#     # ---------- Persist AiraloOrder ----------
+#     airalo_order = AiraloOrder.objects.create(
+#         airalo_id      = data["id"],
+#         code           = data["code"],
+#         currency       = data["currency"],
+#         package_id     = data["package_id"],
+#         quantity       = data["quantity"],
+#         type           = data["type"],
+#         description    = data["description"],
+#         esim_type      = data.get("esim_type"),
+#         validity       = data.get("validity"),
+#         package_title  = data.get("package"),
+#         data           = data.get("data"),
+#         price          = data["price"],
+#         created_at_api = timezone.datetime.strptime(
+#                              data["created_at"], "%Y-%m-%d %H:%M:%S"
+#                          ),
+#         manual_installation = data.get("manual_installation"),
+#         qrcode_installation = data.get("qrcode_installation"),
+#         installation_guides = data.get("installation_guides"),
+#         net_price           = data.get("net_price"),
+#         raw_payload         = data,
+#     )
+
+#     # ---------- Persist SIMs ----------
+#     for sim in data.get("sims", []):
+#         AiraloSim.objects.create(
+#             airalo_order = airalo_order,
+#             sim_id       = sim["id"],
+#             iccid        = sim["iccid"],
+#             lpa          = sim["lpa"],
+#             qrcode       = sim["qrcode"],
+#             qrcode_url   = sim["qrcode_url"],
+#             direct_apple_installation_url = sim.get("direct_apple_installation_url"),
+#             apn_type     = sim.get("apn_type"),
+#             apn_value    = sim.get("apn_value"),
+#             is_roaming   = sim.get("is_roaming", False),
+#             raw_payload  = sim,
+#         )
+
+#     # ---------- Link back & finish ----------
+#     order.airalo_order = airalo_order
+#     order.status       = "completed"
+#     order.save(update_fields=["airalo_order", "status"])
+
+#     # For debugging now:
+#     print("✅ Airalo order created:", airalo_order.code)
+#     for sim in airalo_order.sims.all():
+#         print("   ▶ ICCID:", sim.iccid)
+
+
+
+def purchase_airalo_sim(digiseller_order_id):
+    try:
+        order = DigisellerOrder.objects.select_related("airalo_package").get(pk=digiseller_order_id)
+    except DigisellerOrder.DoesNotExist:
+        print(f"❌ Order with ID {digiseller_order_id} not found.")
+        return
+
+    order.status = "processing"
+    order.save(update_fields=["status"])
+
+    payload = {
+        "quantity": int(order.quantity),
+        "package_id": order.airalo_package.package_id,
+        "type": "sim",
+        "description": f"{order.quantity} {order.airalo_package.package_id}",
+        "brand_settings_name": "",
+        
+        "to_email": "ajayghosh28@gmail.com",
+        "sharing_option[]": "pdf",
+        "copy_address[]": "ajayghosh28@gmail.com"
+    }
+    
+    print('payload for Airalo order creation:', payload)
+    
+    print('Airalo package id in automated order creation:', order.airalo_package.package_id)
+
+    api_token = get_airalo_token()
+    print(f"🔑 Using Airalo API token: {api_token}")
+    headers = {
+        "Authorization": f"Bearer {api_token}",
+        "Accept": "application/json",
+    }
+
+    try:
+        r = requests.post(
+            f"{AIRALO_BASE_API_URL}/v2/orders",
+            headers=headers,
+            data=payload,  # Airalo expects multipart/form-data
+            timeout=15,
+        )
+        
+        # 👇 Print full response for debugging
+        print("🔁 Airalo Response Status:", r.status_code)
+        print("🔁 Airalo Response Headers:", r.headers)
+        try:
+            print("🔁 Airalo Response JSON:", r.json())
+        except Exception:
+            print("🔁 Airalo Response Text (not JSON):", r.text)
+    except Exception as exc:
+        order.status = "failed"
+        order.error_message = str(exc)
+        order.save(update_fields=["status", "error_message"])
+        print(f"❌ Exception during API request: {exc}")
+        traceback.print_exc()
+        return
+
+    if r.status_code != 200:
+        order.status = "failed"
+        order.error_message = f"HTTP {r.status_code}: {r.text}"
+        order.save(update_fields=["status", "error_message"])
+        print(f"❌ Airalo API error: HTTP {r.status_code} - {r.text}")
+        return
+
+    try:
+        data = r.json()["data"]
+    except Exception as e:
+        order.status = "failed"
+        order.error_message = f"Invalid JSON response: {r.text}"
+        order.save(update_fields=["status", "error_message"])
+        print(f"❌ Failed to parse JSON: {r.text}")
+        traceback.print_exc()
+        return
+
+    try:
+        airalo_order = AiraloOrder.objects.create(
+            airalo_id=data["id"],
+            code=data["code"],
+            currency=data["currency"],
+            package_id=data["package_id"],
+            quantity=data["quantity"],
+            type=data["type"],
+            description=data["description"],
+            esim_type=data.get("esim_type"),
+            validity=data.get("validity"),
+            package_title=data.get("package"),
+            data=data.get("data"),
+            price=data["price"],
+            created_at_api=timezone.datetime.strptime(data["created_at"], "%Y-%m-%d %H:%M:%S"),
+            manual_installation=data.get("manual_installation"),
+            qrcode_installation=data.get("qrcode_installation"),
+            installation_guides=data.get("installation_guides"),
+            net_price=data.get("net_price"),
+            raw_payload=data,
+        )
+
+        for sim in data.get("sims", []):
+            AiraloSim.objects.create(
+                airalo_order=airalo_order,
+                sim_id=sim["id"],
+                iccid=sim["iccid"],
+                lpa=sim["lpa"],
+                qrcode=sim["qrcode"],
+                qrcode_url=sim["qrcode_url"],
+                direct_apple_installation_url=sim.get("direct_apple_installation_url"),
+                apn_type=sim.get("apn_type"),
+                apn_value=sim.get("apn_value"),
+                is_roaming=sim.get("is_roaming", False),
+                raw_payload=sim,
+            )
+
+        order.airalo_order = airalo_order
+        order.status = "completed"
+        order.save(update_fields=["airalo_order", "status"])
+
+        print("✅ Airalo order created:", airalo_order.code)
+        for sim in airalo_order.sims.all():
+            print("   ▶ ICCID:", sim.iccid)
+
+    except Exception as db_exc:
+        order.status = "failed"
+        order.error_message = f"DB Save Error: {db_exc}"
+        order.save(update_fields=["status", "error_message"])
+        print(f"❌ Exception during saving AiraloOrder or SIMs: {db_exc}")
+        traceback.print_exc()
+        return

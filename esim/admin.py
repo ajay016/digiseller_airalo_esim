@@ -210,3 +210,87 @@ class DigisellerFailedEntryAdmin(admin.ModelAdmin):
         return bool(obj.data)
     has_data.boolean = True
     has_data.short_description = 'Has Data'
+    
+    
+class AiraloSimInline(admin.TabularInline):
+    model = AiraloSim
+    extra = 0
+    readonly_fields = ('sim_id', 'iccid', 'lpa', 'qrcode_url', 'is_roaming')
+    fields = (
+        'sim_id', 'iccid', 'lpa', 'qrcode', 'qrcode_url',
+        'direct_apple_installation_url', 'apn_type', 'apn_value', 'is_roaming'
+    )
+    show_change_link = True
+
+
+@admin.register(AiraloOrder)
+class AiraloOrderAdmin(admin.ModelAdmin):
+    list_display = ('airalo_id', 'code', 'package_title', 'price', 'currency', 'created_at_api')
+    search_fields = ('airalo_id', 'code', 'package_title')
+    list_filter = ('currency', 'type')
+    inlines = [AiraloSimInline]
+    readonly_fields = ('created_at_api', 'created_at')
+    fieldsets = (
+        (None, {
+            'fields': (
+                'airalo_id', 'code', 'currency', 'package_id', 'quantity',
+                'type', 'description', 'esim_type', 'validity', 'package_title',
+                'data', 'price', 'net_price'
+            )
+        }),
+        ('Installation', {
+            'fields': (
+                'manual_installation', 'qrcode_installation',
+                'installation_guides'
+            )
+        }),
+        ('Meta', {
+            'fields': ('raw_payload', 'created_at_api', 'created_at')
+        }),
+    )
+
+
+@admin.register(AiraloSim)
+class AiraloSimAdmin(admin.ModelAdmin):
+    list_display = ('sim_id', 'iccid', 'airalo_order', 'is_roaming', 'created_at')
+    search_fields = ('sim_id', 'iccid', 'lpa')
+    list_filter = ('is_roaming', 'apn_type')
+    readonly_fields = ('created_at',)
+    raw_id_fields = ('airalo_order',)
+
+
+@admin.register(DigisellerOrder)
+class DigisellerOrderAdmin(admin.ModelAdmin):
+    list_display = (
+        'order_id', 'product', 'variant', 'airalo_package',
+        'status', 'purchase_amount', 'purchase_currency',
+        'buyer_email', 'purchase_date'
+    )
+    search_fields = ('order_id', 'buyer_email')
+    list_filter = ('status', 'purchase_currency', 'invoice_state')
+    readonly_fields = ('created_at', 'updated_at')
+    raw_id_fields = ('product', 'variant', 'airalo_package', 'airalo_order')
+
+    fieldsets = (
+        (None, {
+            'fields': (
+                'order_id', 'product', 'variant', 'airalo_package',
+                'quantity', 'is_my_product'
+            )
+        }),
+        ('Buyer Info', {
+            'fields': ('buyer_email', 'buyer_ip', 'buyer_payment_method')
+        }),
+        ('Purchase Info', {
+            'fields': (
+                'purchase_amount', 'purchase_currency',
+                'purchase_date', 'invoice_state'
+            )
+        }),
+        ('Processing', {
+            'fields': ('status', 'error_message', 'airalo_order')
+        }),
+        ('Tracking & Meta', {
+            'fields': ('cart_uid', 'raw_payload', 'created_at', 'updated_at')
+        }),
+    )

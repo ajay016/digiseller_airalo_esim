@@ -21,6 +21,7 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
 from django.db.models import Count
 from django.views.decorators.csrf import csrf_exempt
+from typing import Dict, List, Tuple
 import base64
 from django.conf import settings
 import requests
@@ -29,6 +30,7 @@ import time
 import json
 import re
 from esim.models import *
+from airalo.views import purchase_airalo_sim
 
 
 
@@ -303,80 +305,219 @@ def digiseller_webhook_test(request):
 #         return HttpResponseBadRequest("Invalid JSON")
 
 
+# @csrf_exempt
+# @require_POST
+# def digiseller_webhook_callback(request):
+#     # 1) Parse incoming JSON
+#     try:
+#         data = json.loads(request.body.decode("utf-8"))
+#     except json.JSONDecodeError:
+#         return HttpResponseBadRequest("Invalid JSON")
+
+#     order_id   = data.get("ID_I")
+#     product_id = data.get("ID_D")
+
+#     print("🚀 Received Webhook Data:", data)
+
+#     # 2) If product not in our DB, skip
+#     if not DigisellerProduct.objects.filter(id_goods=product_id).exists():
+#         print("❌ Product not found, skipping.")
+#         return JsonResponse({"status": "no action needed"})
+
+#     # 3) Fetch the full purchase-info from Digiseller
+#     token        = get_digiseller_token()
+#     purchase_url = f"https://api.digiseller.com/api/purchase/info/{order_id}?token={token}"
+#     resp         = requests.get(purchase_url, timeout=10)
+
+#     if resp.status_code != 200:
+#         return JsonResponse(
+#             {"error": f"Digiseller info API returned {resp.status_code}"}, 
+#             status=502
+#         )
+
+#     content = resp.json().get("content", {})
+
+#     # 4) Validate that the Digiseller API's item_id matches our product_id
+#     if content.get("item_id") != product_id:
+#         print(f"❌ item_id ({content.get('item_id')}) != product_id ({product_id}), skipping.")
+#         return JsonResponse({"status": "no action needed"})
+
+#     # 5) Only proceed if unique_code_state.state == 1
+#     if content.get("unique_code_state", {}).get("state") != 1:
+#         print("❌ unique_code_state.state != 1, skipping.")
+#         return JsonResponse({"status": "no action needed"})
+
+#     # 6) Now process selected variants
+#     product    = DigisellerProduct.objects.get(id_goods=product_id)
+#     buyer_info = content.get("buyer_info", {})
+#     quantity = content.get("cnt_goods", 1)
+
+#     for opt in content.get("options", []):
+#         user_data_id = opt.get("user_data_id")
+
+#         try:
+#             variant = DigisellerVariant.objects.get(
+#                 product=product,
+#                 variant_value=user_data_id
+#             )
+#         except DigisellerVariant.DoesNotExist:
+#             continue
+
+#         airalo_pkg = variant.airalo_package
+#         if not airalo_pkg:
+#             continue
+
+#         # 🔍 For now, just print:
+#         print("▶️ Airalo package ID:", airalo_pkg.package_id)
+
+#         # Override buyer email for testing:
+#         email = buyer_info.get("email")
+#         # email = "ajayghosh28@gmail.com"   # ← uncomment to force
+
+#         print("▶️ Buyer info:", {
+#             "email": email,
+#             "ip":     buyer_info.get("ip_address"),
+#             "method": buyer_info.get("payment_method"),
+#         })
+
+#         # Optional: persist to your DigisellerOrder model here…
+
+#     return JsonResponse({"status": "processed"})
+
+
+
 @csrf_exempt
 @require_POST
 def digiseller_webhook_callback(request):
-    # 1) Parse incoming JSON
     try:
-        data = json.loads(request.body.decode("utf-8"))
+        payload = json.loads(request.body.decode("utf-8"))
     except json.JSONDecodeError:
         return HttpResponseBadRequest("Invalid JSON")
 
-    order_id   = data.get("ID_I")
-    product_id = data.get("ID_D")
-
-    print("🚀 Received Webhook Data:", data)
-
-    # 2) If product not in our DB, skip
-    if not DigisellerProduct.objects.filter(id_goods=product_id).exists():
-        print("❌ Product not found, skipping.")
+    try:
+        handle_digiseller_webhook(payload)
+    except SkipWebhook as exc:
+        # Nothing to do for this event (invalid product, duplicate, etc.)
+        print(f"ℹ️  {exc}")
         return JsonResponse({"status": "no action needed"})
+    except Exception as exc:
+        # Unexpected error – log & surface 5xx so Digiseller retries
+        print(f"❗️ Internal error: {exc}")
+        return JsonResponse({"error": "internal failure"}, status=500)
 
-    # 3) Fetch the full purchase-info from Digiseller
-    token        = get_digiseller_token()
-    purchase_url = f"https://api.digiseller.com/api/purchase/info/{order_id}?token={token}"
-    resp         = requests.get(purchase_url, timeout=10)
+    return JsonResponse({"status": "processed"})
 
-    if resp.status_code != 200:
-        return JsonResponse(
-            {"error": f"Digiseller info API returned {resp.status_code}"}, 
-            status=502
-        )
 
-    content = resp.json().get("content", {})
+class SkipWebhook(Exception):
+    """Raised when a webhook should be safely ignored (not an error)."""
 
-    # 4) Validate that the Digiseller API's item_id matches our product_id
+
+def get_purchase_info(order_id: int, token: str) -> Dict:
+    """Fetch purchase/info and raise for network / API failures."""
+    url = f"https://api.digiseller.com/api/purchase/info/{order_id}?token={token}"
+    resp = requests.get(url, timeout=10)
+    resp.raise_for_status()
+    return resp.json().get("content", {})
+
+
+def validate_product(content: Dict, product_id: int) -> None:
+    """Ensure product matches and unique_code_state == 1; else skip."""
     if content.get("item_id") != product_id:
-        print(f"❌ item_id ({content.get('item_id')}) != product_id ({product_id}), skipping.")
-        return JsonResponse({"status": "no action needed"})
+        raise SkipWebhook("item_id does not match product_id")
 
-    # 5) Only proceed if unique_code_state.state == 1
     if content.get("unique_code_state", {}).get("state") != 1:
-        print("❌ unique_code_state.state != 1, skipping.")
-        return JsonResponse({"status": "no action needed"})
+        raise SkipWebhook("unique_code_state.state != 1")
 
-    # 6) Now process selected variants
-    product    = DigisellerProduct.objects.get(id_goods=product_id)
-    buyer_info = content.get("buyer_info", {})
 
-    for opt in content.get("options", []):
-        user_data_id = opt.get("user_data_id")
+def find_matching_variants(
+    product: DigisellerProduct,
+    options: List[Dict]
+) -> List[Tuple[DigisellerVariant, Package]]:
+    """Return [(variant, airalo_package), …] for any matching user_data_id."""
+    matches = []
 
+    for opt in options:
+        v_id = opt.get("user_data_id")
         try:
             variant = DigisellerVariant.objects.get(
-                product=product,
-                variant_value=user_data_id
+                product=product, variant_value=v_id
             )
         except DigisellerVariant.DoesNotExist:
             continue
 
-        airalo_pkg = variant.airalo_package
-        if not airalo_pkg:
-            continue
+        if variant.airalo_package:
+            matches.append((variant, variant.airalo_package))
 
-        # 🔍 For now, just print:
-        print("▶️ Airalo package ID:", airalo_pkg.package_id)
+    if not matches:
+        raise SkipWebhook("No variants matched / mapped to Airalo packages")
 
-        # Override buyer email for testing:
+    return matches
+
+
+def handle_digiseller_webhook(payload: Dict) -> None:
+    """
+    Orchestrates the full processing flow; raises SkipWebhook when
+    the event should be ignored and lets other exceptions propagate.
+    """
+    order_id   = payload.get("ID_I")
+    product_id = payload.get("ID_D")
+
+    product_qs = DigisellerProduct.objects.filter(id_goods=product_id)
+    if not product_qs.exists():
+        raise SkipWebhook("Product not found in DB")
+
+    token    = get_digiseller_token()
+    content  = get_purchase_info(order_id, token)
+    validate_product(content, product_id)
+
+    product      = product_qs.get()
+    variants     = find_matching_variants(product, content.get("options", []))
+    buyer_info   = content.get("buyer_info", {})
+    quantity     = content.get("cnt_goods", 1)
+
+    # --- For now just log; later call Airalo & persist order ---
+    for variant, airalo_pkg in variants:
+        print("▶️ Airalo package:", airalo_pkg.package_id)
+        
+        # save the digiseller order
+        persist_and_queue(
+            product, variant, airalo_pkg,
+            buyer_info, quantity,
+            content, order_id
+        )
+        
         email = buyer_info.get("email")
-        # email = "ajayghosh28@gmail.com"   # ← uncomment to force
-
+        # email = "ajayghosh28@gmail.com"  # ← test override
         print("▶️ Buyer info:", {
-            "email": email,
-            "ip":     buyer_info.get("ip_address"),
-            "method": buyer_info.get("payment_method"),
+            "email":    email,
+            "ip":       buyer_info.get("ip_address"),
+            "method":   buyer_info.get("payment_method"),
+            "quantity": quantity,
         })
 
-        # Optional: persist to your DigisellerOrder model here…
+        # create_digiseller_order(...)
+        # queue_airalo_purchase(...)
+        
+        
+def persist_and_queue(product, variant, airalo_pkg, buyer_info, quantity, content, order_id):
+    """Create DigisellerOrder and enqueue Celery task."""
+    digiseller_order = DigisellerOrder.objects.create(
+        order_id=order_id,
+        product=product,
+        variant=variant,
+        airalo_package=airalo_pkg,
+        quantity=quantity,
+        buyer_email="ajayghosh28@gmail.com",   # FORCED for testing
+        buyer_ip=buyer_info.get("ip_address"),
+        buyer_payment_method=buyer_info.get("payment_method"),
+        purchase_amount=content.get("amount"),
+        purchase_currency=content.get("currency_type"),
+        invoice_state=content.get("invoice_state"),
+        raw_payload=content,
+        status="received",
+    )
+    
+    purchase_airalo_sim(digiseller_order.id)
 
-    return JsonResponse({"status": "processed"})
+    # Kick off asynchronous Airalo purchase
+    # purchase_airalo_sim.delay(order.pk)
