@@ -501,6 +501,7 @@ def handle_digiseller_webhook(payload: Dict) -> None:
         
 def persist_and_queue(product, variant, airalo_pkg, buyer_info, quantity, content, order_id):
     """Create DigisellerOrder and enqueue Celery task."""
+    # email = buyer_info.get("email")
     digiseller_order = DigisellerOrder.objects.create(
         order_id=order_id,
         product=product,
