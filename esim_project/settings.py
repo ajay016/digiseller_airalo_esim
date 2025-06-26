@@ -34,7 +34,7 @@ SECRET_KEY = 'django-insecure-c+snup=&x05e1(*ql22!&jq7$d!x^^xre!#)-e)wl1qxqpidie
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['4e92-45-127-51-133.ngrok-free.app', ' https://4e92-45-127-51-133.ngrok-free.app', '*']
 
 AUTH_USER_MODEL = 'esim.User'
 
@@ -162,4 +162,17 @@ MESSAGE_TAGS = {
     messages.SUCCESS: 'alert-success',
     messages.WARNING: 'alert-warning',
     messages.ERROR: 'alert-danger',
-} 
+}
+
+
+# Celery / Redis configuration
+CELERY_BROKER_URL       = 'redis://:esim_redis@localhost:6379/0'
+CELERY_RESULT_BACKEND   = 'redis://:esim_redis@localhost:6379/1'
+CELERY_ACCEPT_CONTENT   = ['json']
+CELERY_TASK_SERIALIZER  = 'json'
+CELERY_RESULT_SERIALIZER= 'json'
+CELERY_TIMEZONE         = 'UTC'  # or your timezone
+
+if DEBUG:
+    CELERY_TASK_ALWAYS_EAGER       = False
+    CELERY_TASK_EAGER_PROPAGATES   = False

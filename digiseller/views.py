@@ -30,7 +30,7 @@ import time
 import json
 import re
 from esim.models import *
-from airalo.views import purchase_airalo_sim
+from airalo.tasks.airalo_tasks import purchase_airalo_sim
 
 
 
@@ -517,7 +517,4 @@ def persist_and_queue(product, variant, airalo_pkg, buyer_info, quantity, conten
         status="received",
     )
     
-    purchase_airalo_sim(digiseller_order.id)
-
-    # Kick off asynchronous Airalo purchase
-    # purchase_airalo_sim.delay(order.pk)
+    purchase_airalo_sim.delay(digiseller_order.id)
