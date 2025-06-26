@@ -37,9 +37,31 @@ def is_valid_email(email):
     return re.match(r"[^@]+@[^@]+\.[^@]+", email)
 
 
+@login_required
 def dashboard(request):
     return render(request, 'index.html')
 
+def login_view(request):
+    if request.method == "POST":
+        email = request.POST.get("email")
+        password = request.POST.get("password")
+
+        # Authenticate using email as username (ensure email is unique)
+        user = authenticate(request, username=email, password=password)
+
+        if user is not None:
+            login(request, user)
+            return redirect('dashboard')  # Change 'home' to your main page name
+        else:
+            messages.error(request, "Invalid email or password")
+
+    return render(request, "login.html")
+
+
+def logout_view(request):
+    logout(request)
+    messages.success(request, "You have been logged out successfully.")
+    return redirect('login')  # redirect to your login page
 
 
 def sync_data(request):

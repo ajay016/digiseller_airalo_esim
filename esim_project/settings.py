@@ -18,6 +18,10 @@ from decouple import config
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 
+LOGIN_URL = '/login/'  # Redirects to this page when @login_required is triggered
+LOGIN_REDIRECT_URL = '/'  # After login, redirect here
+LOGOUT_REDIRECT_URL = '/login/'  # After logout, redirect here
+
 
 AIRALO_CLIENT_ID = config("AIRALO_CLIENT_ID")
 AIRALO_CLIENT_SECRET = config("AIRALO_CLIENT_SECRET")

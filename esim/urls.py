@@ -7,6 +7,8 @@ from .import views
 
 urlpatterns = [
     path('', views.dashboard, name='dashboard'),
+    path("login/", views.login_view, name="login"),
+    path("logout/", views.logout_view, name="logout"),
     path('sync-data/', views.sync_data, name='sync_data'),
     path('digiseller-products/', views.digiseller_products, name='digiseller_products'),
     path('digiseller-product/<int:id>', views.digiseller_product, name='digiseller_product'),
