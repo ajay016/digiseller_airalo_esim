@@ -17,6 +17,7 @@ from decouple import config
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+TIME_ZONE = 'Europe/Moscow'
 
 LOGIN_URL = '/login/'  # Redirects to this page when @login_required is triggered
 LOGIN_REDIRECT_URL = '/'  # After login, redirect here
@@ -33,10 +34,10 @@ DIGISELLER_API_KEY = config("DIGISELLER_API_KEY")
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-c+snup=&x05e1(*ql22!&jq7$d!x^^xre!#)-e)wl1qxqpidie'
+SECRET_KEY = config("DJANGO_SECRET_KEY")
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = False
 
 ALLOWED_HOSTS = ['4e92-45-127-51-133.ngrok-free.app', ' https://4e92-45-127-51-133.ngrok-free.app', '*']
 
@@ -170,13 +171,14 @@ MESSAGE_TAGS = {
 
 
 # Celery / Redis configuration
-CELERY_BROKER_URL       = 'redis://:esim_redis@localhost:6379/0'
-CELERY_RESULT_BACKEND   = 'redis://:esim_redis@localhost:6379/1'
+# CELERY_BROKER_URL       = config("REDIS_URL")
+# CELERY_RESULT_BACKEND   = config("REDIS_RESULT")
 CELERY_ACCEPT_CONTENT   = ['json']
 CELERY_TASK_SERIALIZER  = 'json'
 CELERY_RESULT_SERIALIZER= 'json'
-CELERY_TIMEZONE         = 'UTC'  # or your timezone
+CELERY_ENABLE_UTC = True
+CELERY_TIMEZONE = 'Europe/Moscow'
 
 if DEBUG:
-    CELERY_TASK_ALWAYS_EAGER       = False
-    CELERY_TASK_EAGER_PROPAGATES   = False
+    CELERY_TASK_ALWAYS_EAGER       = True
+    CELERY_TASK_EAGER_PROPAGATES   = True
