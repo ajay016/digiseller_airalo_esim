@@ -341,7 +341,8 @@
                                                         type="button"
                                                         data-bs-toggle="modal"
                                                         data-bs-target="#editModal"
-                                                        data-variant-id="{{ variant.id }}">
+                                                        data-variant-id="{{ variant.id }}"
+                                                        data-variant-text="{{ variant.text }}">
                                                     Packages
                                                 </button>
                                             </div>
@@ -383,11 +384,11 @@
                                 <div class="row">
                                     <input type="hidden" id="activeVariantId">
                                     <div class="col-md-6 col-12">
-                                        <label class="form-label" for="country">Select Base Country</label><span class="required-fields-mark">*</span>
+                                        <label class="form-label" for="country">Select a Base Country/Region</label><span class="required-fields-mark">*</span>
                                         <select class="select2" name="country" id="country">
-                                            <option value="">Select a Base Country</option>
+                                            <option value="">Select a Base Country/Region</option>
                                             {% for country in countries %}
-                                                <option value="{{ country.id }}">{{ country.title }}</option>
+                                                <option value="{{ country.id }}">{{ country.title }}</option>.
                                             {% endfor %}
                                         </select>
                                     </div>
@@ -395,7 +396,7 @@
                                     <div class="col-md-6 col-12">
                                         <label class="form-label" for="operator-country">Select Operator Country</label><span class="required-fields-mark">*</span>
                                         <select class="select2" name="operator_country" id="operator-country">
-                                            <option value="">Select a Operator Country</option>
+                                            <option value="">Select an Operator Country</option>
                                             {% for operator_country in operator_countries %}
                                                 <option value="{{ operator_country.id }}">{{ operator_country.title }}</option>
                                             {% endfor %}
@@ -404,7 +405,9 @@
                                 </div>
 
                                 <div class="col-md-12">
-                                    <h4 class="mb-4">Packages for {{ selected_country_title }}</h4>
+                                    <h6 class="mb-4" id="region-country-name">Packages for {{ selected_country_title }}</h6>
+                                    <h4 id="variant-name" style="color: #9b253a"></h4>
+                                    
                                     <div class="row g-4 package-results-container">
                                         {% for package in packages %}
                                         <div class="col-md-6 col-lg-4">
@@ -493,7 +496,7 @@
     $(document).ready(function() {
         //$('.select2').select2();
         $('#country').select2({
-            placeholder: 'Select a Base Country',
+            placeholder: 'Select a Base Country/Region',
             dropdownParent: $('#editModal'),
             width: '100%'
         });
@@ -517,8 +520,12 @@
         // stash active variant
         $modal.on('show.bs.modal', function(event) {
             const variantId = $(event.relatedTarget).data('variant-id');
+            const variantText = $(event.relatedTarget).data('variant-text');
             $modal.data('variant-id', variantId);
             $modal.removeData('selected-package-id');
+
+            $('#variant-name').text("Variant: " + variantText);
+
             $('.select-package-btn').removeClass('selected');
             $errorDiv.empty().removeClass('alert alert-danger');
         });
@@ -537,10 +544,14 @@
         }
 
         // when modal’s country changes
-        $countrySelect.on('change', function () {
+        /*$countrySelect.on('change', function () {
             const countryId = this.value;
+            const countryName = $(this).find("option:selected").text();
+
+
             $regionSelect.val('');  // reset operator-country
             if (countryId) {
+                $("#region-country-name").text(countryName);
                 fetchPackages(`country=${countryId}`);
             }
         });
@@ -548,11 +559,54 @@
         // when modal’s operator-country changes
         $regionSelect.on('change', function () {
             const regionId = this.value;
+            const regionName = $(this).find("option:selected").text();
+
             $countrySelect.val('');  // reset base country
+            
             if (regionId) {
+                $("#region-country-name").text(regionName);
                 fetchPackages(`region=${regionId}`);
             }
+        });*/
+
+        let ignoreChange = false;
+
+        $('#country').on('change', function () {
+            if (ignoreChange) return;
+
+            ignoreChange = true;
+            $('#operator-country').val(null).trigger('change');
+            ignoreChange = false;
+
+            const countryId = $(this).val();
+            const countryName = $('#country option:selected').text();
+
+            if (countryId) {
+                $("#region-country-name").text(`Country/Region: ${countryName}`);
+                fetchPackages(`country=${countryId}`);
+            } else {
+                $("#region-country-name").text('');
+            }
         });
+
+        $('#operator-country').on('change', function () {
+            if (ignoreChange) return;
+
+            ignoreChange = true;
+            $('#country').val(null).trigger('change');
+            ignoreChange = false;
+
+            const regionId = $(this).val();
+            const regionName = $('#operator-country option:selected').text();
+
+            if (regionId) {
+                $("#region-country-name").text(`Country/Region: ${regionName}`);
+                fetchPackages(`region=${regionId}`);
+            } else {
+                $("#region-country-name").text('');
+            }
+        });
+
 
         $(document).on('click', '.select-package-btn', function () {
             const $btn = $(this);
@@ -670,91 +724,5 @@
             }
         }
     });
-</script>
-<script>
-    /*$(document).ready(function () {
-        $(document).on('click', '[data-bs-target="#editModal"]', function () {
-            const variantId = $(this).data('variant-id');
-            $('#activeVariantId').val(variantId);
-        });
-
-        function fetchPackages() {
-            const countryId = $('#country').val();
-            const regionId = $('#operator-country').val();
-
-            const params = new URLSearchParams();
-            if (countryId) params.append('country', countryId);
-            if (regionId) params.append('region', regionId);
-
-            fetch(`/get-packages-by-region/?${params.toString()}`)
-                .then(res => res.json())
-                .then(data => {
-                    const container = $('.package-results-container');
-                    container.empty();
-
-                    if (data.packages.length === 0) {
-                        container.html(`<div class="col-12 text-center"><p class="text-muted">No packages found for selected filters.</p></div>`);
-                        return;
-                    }
-
-                    data.packages.forEach(pkg => {
-                        container.append(`
-                            <div class="col-md-6 col-lg-4">
-                                <div class="card border-0 shadow-sm h-100"
-                                    style="background: linear-gradient(135deg, rgba(100, 179, 244, 0.08), rgba(194, 229, 255, 0.15));">
-                                    <div class="card-header bg-transparent border-0">
-                                        <h5 class="mb-0 text-primary">
-                                            <i class="fas fa-network-wired me-2"></i> ${pkg.operator_title}
-                                        </h5>
-                                    </div>
-                                    <div class="card-body">
-                                        <div class="package-item mb-3 p-3 rounded" style="background: rgba(255,255,255,0.7);">
-                                            <div class="d-flex justify-content-between mb-2">
-                                                <span class="text-muted">Country:</span>
-                                                <span class="fw-bold">${pkg.country_title}</span>
-                                            </div>
-                                            <div class="d-flex justify-content-between mb-2">
-                                                <span class="text-muted">Data:</span>
-                                                <span class="fw-bold text-info">${pkg.data}</span>
-                                            </div>
-                                            <div class="d-flex justify-content-between mb-2">
-                                                <span class="text-muted">Validity:</span>
-                                                <span class="fw-bold">${pkg.day} days</span>
-                                            </div>
-                                            <div class="d-flex justify-content-between">
-                                                <span class="text-muted">Price:</span>
-                                                <span class="fw-bold text-success">€${pkg.price}</span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div class="card-footer bg-transparent border-0">
-                                        <button type="button" class="btn btn-outline-primary w-100 select-package-btn"
-                                            data-package-id="${pkg.id}">Select Package</button>
-                                    </div>
-                                </div>
-                            </div>
-                        `);
-                    });
-
-                })
-                .catch(err => console.error('Error loading packages:', err));
-        }
-
-        $('#country, #operator-country').on('change', fetchPackages);
-
-        // ✅ Delegate click event for dynamically added buttons
-        $(document).on('click', '.select-package-btn', function () {
-            const packageId = $(this).data('package-id');
-            const variantId = $('#activeVariantId').val();  // make sure this input is populated properly
-            console.log('Package selected:', packageId, 'for variant:', variantId);
-
-            // You can now use these to update fields, make API calls, etc.
-            // Example: insert into hidden input or close modal
-            $('#editModal').modal('hide');
-
-            // Optional: Show confirmation
-            alert(`Package ID ${packageId} selected for Variant ID ${variantId}`);
-        });
-    });*/
 </script>
 {% endblock scriptcontent %}

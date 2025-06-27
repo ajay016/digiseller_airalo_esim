@@ -93,3 +93,18 @@ def get_recent_orders():
         })
 
     return results
+
+
+def get_digiseller_product_variant_stats():
+    total_products = DigisellerProduct.objects.count()
+    total_variants = DigisellerVariant.objects.count()
+
+    variants_with_package = DigisellerVariant.objects.filter(airalo_package__isnull=False).count()
+    variants_without_package = total_variants - variants_with_package
+
+    return {
+        "total_products": total_products,
+        "total_variants": total_variants,
+        "variants_with_package": variants_with_package,
+        "variants_without_package": variants_without_package,
+    }

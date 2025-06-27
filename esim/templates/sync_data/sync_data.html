@@ -62,19 +62,19 @@
                                 <div class="mb-4">
                                     <div class="d-flex justify-content-between py-2 border-bottom">
                                         <span class="text-muted">Operators:</span>
-                                        <span class="fw-bold">24</span>
+                                        <span class="fw-bold">{{ total_operators }}</span>
                                     </div>
                                     <div class="d-flex justify-content-between py-2 border-bottom">
                                         <span class="text-muted">Packages:</span>
-                                        <span class="fw-bold">186</span>
+                                        <span class="fw-bold">{{ total_packages }}</span>
                                     </div>
                                     <div class="d-flex justify-content-between py-2 border-bottom">
-                                        <span class="text-muted">Sync Packages:</span>
-                                        <span class="fw-bold text-success">178</span>
+                                        <span class="text-muted">Packages Added:</span>
+                                        <span class="fw-bold text-success">{{ packages_with_variant }}</span>
                                     </div>
                                     <div class="d-flex justify-content-between py-2">
-                                        <span class="text-muted">Unsynced Packages:</span>
-                                        <span class="fw-bold text-warning">8</span>
+                                        <span class="text-muted">Packages Not in Store:</span>
+                                        <span class="fw-bold text-warning">{{ packages_without_variant }}</span>
                                     </div>
                                 </div>
                                 
@@ -126,19 +126,19 @@
                                 <div class="mb-4">
                                     <div class="d-flex justify-content-between py-2 border-bottom">
                                         <span class="text-muted">Products:</span>
-                                        <span class="fw-bold">42</span>
+                                        <span class="fw-bold">{{ total_products }}</span>
                                     </div>
                                     <div class="d-flex justify-content-between py-2 border-bottom">
                                         <span class="text-muted">Variants:</span>
-                                        <span class="fw-bold">127</span>
+                                        <span class="fw-bold">{{ total_variants }}</span>
                                     </div>
                                     <div class="d-flex justify-content-between py-2 border-bottom">
-                                        <span class="text-muted">Total Orders:</span>
-                                        <span class="fw-bold text-success">1,842</span>
+                                        <span class="text-muted">Variants With Package:</span>
+                                        <span class="fw-bold text-success">{{ variants_with_package }}</span>
                                     </div>
                                     <div class="d-flex justify-content-between py-2">
-                                        <span class="text-muted">Pending Orders:</span>
-                                        <span class="fw-bold text-warning">23</span>
+                                        <span class="text-muted">Variants without Package:</span>
+                                        <span class="fw-bold text-warning">{{ variants_without_package }}</span>
                                     </div>
                                 </div>
                                 
@@ -238,46 +238,6 @@
         const $syncModal = new bootstrap.Modal($('#syncModal')[0]);
         const $retryBtn = $('#retry-sync');
         let lastSyncRequest = { url: null, method: 'GET', body: null };
-
-       /*function handleSyncRequest({ url, method = 'GET', body = null }) {
-            // Store for retry
-            lastSyncRequest = { url, method, body };
-
-            // Reset modal state
-            $('#sync-loading').removeClass('d-none');
-            $('#sync-success').addClass('d-none');
-            $('#sync-error').addClass('d-none');
-
-            $syncModal.show();
-
-            fetch(url, {
-                method: method,
-                headers: {
-                    'X-CSRFToken': '{{ csrf_token }}',
-                    'Content-Type': 'application/json'
-                },
-                body: method === 'POST' ? JSON.stringify(body || {}) : null,
-                credentials: 'same-origin'
-            })
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error('Network response was not ok');
-                }
-                return response.json();
-            })
-            .then(data => {
-                $('#sync-loading').addClass('d-none');
-                $('#sync-success').removeClass('d-none');
-            })
-            .catch(error => {
-                $('#sync-loading').addClass('d-none');
-                $('#sync-error').removeClass('d-none');
-                $('#error-message').text(error.message || 'An unexpected error occurred');
-                console.error('Error:', error);
-            });
-        }*/
-
-
 
         function handleSyncRequest({ url, method = 'GET', body = null, sourceLabel = 'Data' }) {
             lastSyncRequest = { url, method, body, sourceLabel };

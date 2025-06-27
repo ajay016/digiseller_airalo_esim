@@ -24,6 +24,7 @@ from django.shortcuts import render, get_object_or_404
 from django.template.loader import render_to_string
 from esim.utils import digiseller_stats as ds
 from django.db.models.functions import TruncMonth
+from esim.utils import airalo_stats as airalo_stats
 from django.conf import settings
 import requests
 import hashlib
@@ -103,7 +104,22 @@ def logout_view(request):
 
 
 def sync_data(request):
-    return render(request, 'sync_data/sync_data.html')
+    stats = airalo_stats.get_package_operator_stats()
+    product_stats = ds.get_digiseller_product_variant_stats()
+
+    context = {
+        "total_operators": stats["total_operators"],
+        "total_packages": stats["total_packages"],
+        "packages_with_variant": stats["packages_with_variant"],
+        "packages_without_variant": stats["packages_without_variant"],
+        
+        # Product/variant stats
+        "total_products": product_stats["total_products"],
+        "total_variants": product_stats["total_variants"],
+        "variants_with_package": product_stats["variants_with_package"],
+        "variants_without_package": product_stats["variants_without_package"],
+    }
+    return render(request, 'sync_data/sync_data.html', context)
 
 @login_required
 def digiseller_products(request):
