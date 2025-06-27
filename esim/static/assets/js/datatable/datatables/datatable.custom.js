@@ -90,7 +90,7 @@
       fixedColumns: {
         leftColumns: 2, //
       },
-      order: [[1, "asc"]],
+      order: [[0, "asc"]],
       scrollCollapse: true,
       select: {
         style: "multi",

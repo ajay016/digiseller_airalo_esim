@@ -16,11 +16,14 @@ from datetime import timedelta
 from django.utils.dateparse import parse_datetime
 from django.core.cache import cache
 from rest_framework.response import Response
+from django.db.models import Sum
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
 from django.db.models import Count
 from django.shortcuts import render, get_object_or_404
 from django.template.loader import render_to_string
+from esim.utils import digiseller_stats as ds
+from django.db.models.functions import TruncMonth
 from django.conf import settings
 import requests
 import hashlib
@@ -39,7 +42,42 @@ def is_valid_email(email):
 
 @login_required
 def dashboard(request):
-    return render(request, 'index.html')
+    buyer_stats, total_unique_buyers = ds.get_unique_buyer_stats()
+    monthly_stats = ds.get_monthly_digiseller_stats()
+    recent_orders = ds.get_recent_orders()
+
+    context = {
+        'total_unique_buyers': total_unique_buyers,
+        'buyer_stats': buyer_stats,
+        'monthly_totals': json.dumps(monthly_stats["monthly_totals"]),
+        'sales_per_month': json.dumps(monthly_stats["sales_per_month"]),  # now contains total amounts
+        'failed_orders_per_month': json.dumps(monthly_stats["failed_orders_per_month"]),
+        'recent_orders': recent_orders,
+    }
+    print("recent_orders:", recent_orders)
+    return render(request, 'index.html', context)
+
+
+def monthly_order_totals(request):
+    data = (
+        DigisellerOrder.objects
+        .filter(purchase_date__isnull=False)
+        .annotate(month=TruncMonth('purchase_date'))
+        .values('month')
+        .annotate(total_amount=Sum('purchase_amount'))
+        .order_by('month')
+    )
+    
+    print("Monthly Order Totals Data:", data)
+
+    monthly_data = [0] * 12  # Initialize for Jan–Dec
+
+    for entry in data:
+        month_index = entry['month'].month - 1  # Jan = 0
+        monthly_data[month_index] = round(entry['total_amount'] or 0, 2)
+
+    return JsonResponse({'monthly_totals': monthly_data})
+
 
 def login_view(request):
     if request.method == "POST":
@@ -67,7 +105,7 @@ def logout_view(request):
 def sync_data(request):
     return render(request, 'sync_data/sync_data.html')
 
-
+@login_required
 def digiseller_products(request):
     digiseller_products = DigisellerProduct.objects.all()
     
@@ -76,7 +114,7 @@ def digiseller_products(request):
     }
     return render(request, 'digiseller/digiseller_products.html', context)
 
-
+@login_required
 def digiseller_product(request, id):
     digiseller_product = get_object_or_404(DigisellerProduct, id=id)
     variants = digiseller_product.variants.all()

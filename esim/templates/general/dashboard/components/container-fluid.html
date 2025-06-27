@@ -152,8 +152,8 @@
               <h5>Top Customers</h5>
               <div class="card-header-right-icon">
                 <div class="dropdown icon-dropdown">
-                  <button class="btn dropdown-toggle" id="customerButton" type="button" data-bs-toggle="dropdown" aria-expanded="false"><i class="icon-more-alt"></i></button>
-                  <div class="dropdown-menu dropdown-menu-end" aria-labelledby="customerButton"><a class="dropdown-item" href="#!">Today</a><a class="dropdown-item" href="#!">Tomorrow</a><a class="dropdown-item" href="#!">Yesterday</a></div>
+                  {% comment %} <button class="btn dropdown-toggle" id="customerButton" type="button" data-bs-toggle="dropdown" aria-expanded="false"><i class="icon-more-alt"></i></button> {% endcomment %}
+                  {% comment %} <div class="dropdown-menu dropdown-menu-end" aria-labelledby="customerButton"><a class="dropdown-item" href="#!">Today</a><a class="dropdown-item" href="#!">Tomorrow</a><a class="dropdown-item" href="#!">Yesterday</a></div> {% endcomment %}
                 </div>
               </div>
             </div>
@@ -170,150 +170,47 @@
                   </tr>
                 </thead>
                 <tbody> 
+                  {% for buyer_stat in buyer_stats %}
                   <tr>
-                    <td> </td>
-                    <td>
-                      <div class="d-flex"><img class="img-fluid img-40 rounded-circle me-2" src="{% static 'assets/images/dashboard/user/2.jpg' %}" alt="user">
-                        <div class="img-content-box"><a class="f-w-500" href="#!">Jane Cooper</a>
-                          <p class="mb-0 f-light">#452140</p>
-                        </div>
-                      </div>
-                    </td>
-                    <td>65 Purchases</td>
-                    <td class="f-w-500 txt-success">$970.00</td>
-                  </tr>
-                  <tr> 
                     <td></td>
                     <td>
-                      <div class="d-flex"><img class="img-fluid img-40 rounded-circle me-2" src="{% static 'assets/images/dashboard/user/3.jpg' %}" alt="user">
-                        <div class="img-content-box"><a class="f-w-500" href="#!">Wade Warren</a>
-                          <p class="mb-0 f-light">#844967</p>
+                      <div class="d-flex">
+                        {% comment %} <img class="img-fluid img-40 rounded-circle me-2" src="{% static 'assets/images/dashboard/user/1.jpg' %}" alt="user"> {% endcomment %}
+                        <div class="img-content-box"><a class="f-w-500" href="#!">{{ buyer_stat.buyer_email }}</a>
+                          {% comment %} <p class="mb-0 f-light">#{{ buyer_stat.buyer_id }}</p> {% endcomment %}
                         </div>
                       </div>
                     </td>
-                    <td>42 Purchases</td>
-                    <td class="f-w-500 txt-success">$300.00</td>
+                    <td>{{ buyer_stat.total_orders }} Purchases</td>
+                    <td class="f-w-500 txt-success">${{ buyer_stat.total_amount }}</td>
                   </tr>
-                  <tr>
-                    <td> </td>
-                    <td>
-                      <div class="d-flex"><img class="img-fluid img-40 rounded-circle me-2" src="{% static 'assets/images/dashboard/user/4.jpg' %}" alt="user">
-                        <div class="img-content-box"><a class="f-w-500" href="#!">Guy Hawkins</a>
-                          <p class="mb-0 f-light">#321489</p>
-                        </div>
-                      </div>
-                    </td>
-                    <td>38 Purchases</td>
-                    <td class="f-w-500 txt-success">$900.00</td>
-                  </tr>
-                  <tr>
-                    <td> </td>
-                    <td>
-                      <div class="d-flex"><img class="img-fluid img-40 rounded-circle me-2" src="{% static 'assets/images/dashboard/user/5.jpg' %}" alt="user">
-                        <div class="img-content-box"><a class="f-w-500" href="#!">Jake Spy</a>
-                          <p class="mb-0 f-light">#954687</p>
-                        </div>
-                      </div>
-                    </td>
-                    <td>23 Purchases</td>
-                    <td class="f-w-500 txt-success">$300.00</td>
-                  </tr>
-                  <tr>
-                    <td> </td>
-                    <td>
-                      <div class="d-flex"><img class="img-fluid img-40 rounded-circle me-2" src="{% static 'assets/images/dashboard-9/user/1.png' %}" alt="user">
-                        <div class="img-content-box"><a class="f-w-500" href="#!">Devin Jake</a>
-                          <p class="mb-0 f-light">#562778</p>
-                        </div>
-                      </div>
-                    </td>
-                    <td>12 Purchases</td>
-                    <td class="f-w-500 txt-success">$500.00</td>
-                  </tr>
-                  <tr>
-                    <td> </td>
-                    <td>
-                      <div class="d-flex"><img class="img-fluid img-40 rounded-circle me-2" src="{% static 'assets/images/dashboard-9/user/2.png' %}" alt="user">
-                        <div class="img-content-box"><a class="f-w-500" href="#!">Jacob Jones</a>
-                          <p class="mb-0 f-light">#589356</p>
-                        </div>
-                      </div>
-                    </td>
-                    <td>10 Purchases</td>
-                    <td class="f-w-500 txt-success">$420.00</td>
-                  </tr>
-                  <tr>
-                    <td> </td>
-                    <td>
-                      <div class="d-flex"><img class="img-fluid img-40 rounded-circle me-2" src="{% static 'assets/images/dashboard-9/user/5.png' %}" alt="user">
-                        <div class="img-content-box"><a class="f-w-500" href="#!">Jams Bone</a>
-                          <p class="mb-0 f-light">#589657</p>
-                        </div>
-                      </div>
-                    </td>
-                    <td>10 Purchases</td>
-                    <td class="f-w-500 txt-success">$440.00</td>
-                  </tr>
-                  <tr>
-                    <td> </td>
-                    <td>
-                      <div class="d-flex"><img class="img-fluid img-40 rounded-circle me-2" src="{% static 'assets/images/dashboard-9/user/3.png' %}" alt="user">
-                        <div class="img-content-box"><a class="f-w-500" href="#!">Mili Pais</a>
-                          <p class="mb-0 f-light">#589654</p>
-                        </div>
-                      </div>
-                    </td>
-                    <td>12 Purchases</td>
-                    <td class="f-w-500 txt-success">$240.00</td>
-                  </tr>
+                  {% endfor %}
                 </tbody>
               </table>
             </div>
           </div>
         </div>
       </div>
-      <div class="col-xxl-6 col-lg-6 box-col-6 ord-xl-2 ord-md-3 box-ord-2">
-        <div class="card">
+      <div class="col-xxl-6 col-lg-6 ord-xl-9 ord-md-7 box-ord-7 box-col-6">
+        <div class="card sales-report">
           <div class="card-header card-no-border">
             <div class="header-top"> 
-              <h5>Sales Statistical Overview</h5>
+              <h5>Sales Report</h5>
               <div class="card-header-right-icon">
-                <div class="dropdown custom-dropdown">
-                  <button class="btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">Year</button>
-                  <ul class="dropdown-menu">
-                    <li><a class="dropdown-item" href="#!">Day</a></li>
-                    <li><a class="dropdown-item" href="#!">Month</a></li>
-                    <li><a class="dropdown-item" href="#!">Year</a></li>
-                  </ul>
+                <div class="dropdown icon-dropdown">
+                  <button class="btn dropdown-toggle" id="salesButton" type="button" data-bs-toggle="dropdown" aria-expanded="false"><i class="icon-more-alt"></i></button>
+                  <div class="dropdown-menu dropdown-menu-end" aria-labelledby="salesButton"><a class="dropdown-item" href="#!">Today</a><a class="dropdown-item" href="#!">Tomorrow</a><a class="dropdown-item" href="#!">Yesterday</a></div>
                 </div>
               </div>
             </div>
           </div>
-          <div class="card-body pt-0">
-            <div class="row m-0 overall-card">
-              <div class="col-12 p-0">                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              
-                <div class="chart-right">
-                  <div class="row">
-                    <div class="col-xl-12">
-                      <div class="card-body p-0 statistical-card">
-                        <ul class="d-flex m-b-15">
-                          <li>
-                            <h5 class="counter" data-target="19897">0</h5><span class="f-light">Total Cost</span>
-                          </li>
-                          <li>
-                            <h5>
-                               $<span class="counter" data-target="849058">0</span></h5><span class="f-light">Total Revenue</span>
-                          </li>
-                        </ul>
-                        <div class="current-sale-container">
-                          <div id="chart-currently"></div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
+          <div class="card-body pt-0"> 
+            <ul class="balance-data"> 
+              <li><span class="circle bg-primary"></span><span class="c-light ms-1">Total Amount of Sales</span></li>
+              <li><span class="circle bg-warning"> </span><span class="c-light ms-1">Number of Orders</span></li>
+              <li><span class="circle bg-secondary"> </span><span class="c-light ms-1">Returned</span></li>
+            </ul>
+            <div id="sale_reports"></div>
           </div>
         </div>
       </div>
@@ -334,161 +231,36 @@
             <div class="recent-table table-responsive currency-table recent-order-table custom-scrollbar"> 
               <table class="table" id="main-recent-order">
                 <thead> 
-                  <tr>
-                    <th></th>
-                    <th>Product Name</th>
-                    <th>Customers</th>
-                    <th>Qty</th>
-                    <th>Total Price</th>
-                    <th>Order Date</th>
-                    <th>Status</th>
-                  </tr>
+                    <tr>
+                      <th>Order ID</th>
+                      <th>Product Name</th>
+                      <th>Variant</th>
+                      <th>Package ID</th>
+                      <th>Customer Email</th>
+                      <th>Total Price</th>
+                      <th>Order Date</th>
+                      <th>Status</th>
+                    </tr>
                 </thead>
-                <tbody> 
-                  <tr> 
-                    <td></td>
-                    <td>
-                      <div class="d-flex align-items-center gap-2">
-                        <div class="currency-icon warning"><img class="img-fluid" src="{% static 'assets/images/dashboard-2/order/sub-product/16.png' %}" alt=""></div>
-                        <div> 
-                          <h6 class="f-14 mb-0 f-w-500">Bag</h6><a class="c-o-light" href="#!">#452140 </a>
-                        </div>
-                      </div>
-                    </td>
-                    <td>Jenny Wilson</td>
-                    <td>2 PCS</td>
-                    <td>$2,854</td>
-                    <td>16 Jan,2024</td>
-                    <td> 
-                      <button class="btn button-light-success txt-success f-w-500">Delivered</button>
-                    </td>
-                  </tr>
-                  <tr>
-                    <td></td>
-                    <td>
-                      <div class="d-flex align-items-center gap-2">
-                        <div class="currency-icon warning"><img class="img-fluid" src="{% static 'assets/images/dashboard-2/order/sub-product/25.png' %}" alt=""></div>
-                        <div> 
-                          <h6 class="f-14 mb-0 f-w-500">Sofa</h6><a class="c-o-light" href="#!">#844967</a>
-                        </div>
-                      </div>
-                    </td>
-                    <td>Esther Howard</td>
-                    <td>1 PCS</td>
-                    <td>$9,943</td>
-                    <td>21 Feb,2024</td>
-                    <td> 
-                      <button class="btn button-light-warning txt-warning f-w-500">In Progress</button>
-                    </td>
-                  </tr>
-                  <tr>
-                    <td></td>
-                    <td>
-                      <div class="d-flex align-items-center gap-2">
-                        <div class="currency-icon warning"><img class="img-fluid" src="{% static 'assets/images/dashboard-2/order/sub-product/26.png' %}" alt=""></div>
-                        <div> 
-                          <h6 class="f-14 mb-0 f-w-500">Lamp</h6><a class="c-o-light" href="#!">#321489</a>
-                        </div>
-                      </div>
-                    </td>
-                    <td>Darrell Steward</td>
-                    <td>1 PCS</td>
-                    <td>$8,195</td>
-                    <td>09 Mar,2024</td>
-                    <td> 
-                      <button class="btn button-light-info txt-info f-w-500">Pending</button>
-                    </td>
-                  </tr>
-                  <tr>
-                    <td></td>
-                    <td>
-                      <div class="d-flex align-items-center gap-2">
-                        <div class="currency-icon warning"><img class="img-fluid" src="{% static 'assets/images/dashboard-2/order/sub-product/24.png' %}" alt=""></div>
-                        <div> 
-                          <h6 class="f-14 mb-0 f-w-500">Watch</h6><a class="c-o-light" href="#!">#954687</a>
-                        </div>
-                      </div>
-                    </td>
-                    <td>Dianne Russell</td>
-                    <td>3 PCS</td>
-                    <td>$1,706</td>
-                    <td>14 Apr,2024</td>
-                    <td> 
-                      <button class="btn button-light-danger txt-danger f-w-500">Canceled</button>
-                    </td>
-                  </tr>
-                  <tr>
-                    <td></td>
-                    <td>
-                      <div class="d-flex align-items-center gap-2">
-                        <div class="currency-icon warning"><img class="img-fluid" src="{% static 'assets/images/dashboard-2/order/sub-product/6.png' %}" alt=""></div>
-                        <div> 
-                          <h6 class="f-14 mb-0 f-w-500">Football</h6><a class="c-o-light" href="#!">#896748</a>
-                        </div>
-                      </div>
-                    </td>
-                    <td>Darrell Steward</td>
-                    <td>2 PCS</td>
-                    <td>$7,580</td>
-                    <td>14 Apr,2024</td>
-                    <td> 
-                      <button class="btn button-light-danger txt-danger f-w-500">Canceled</button>
-                    </td>
-                  </tr>
-                  <tr>
-                    <td></td>
-                    <td>
-                      <div class="d-flex align-items-center gap-2">
-                        <div class="currency-icon warning"><img class="img-fluid" src="{% static 'assets/images/dashboard-2/order/sub-product/10.png' %}" alt=""></div>
-                        <div> 
-                          <h6 class="f-14 mb-0 f-w-500">T-shirt</h6><a class="c-o-light" href="#!">#321489</a>
-                        </div>
-                      </div>
-                    </td>
-                    <td>Darrell Steward</td>
-                    <td>1 PCS</td>
-                    <td>$8,195</td>
-                    <td>09 Mar,2024</td>
-                    <td> 
-                      <button class="btn button-light-info txt-info f-w-500">Pending</button>
-                    </td>
-                  </tr>
-                  <tr>
-                    <td></td>
-                    <td>
-                      <div class="d-flex align-items-center gap-2">
-                        <div class="currency-icon warning"><img class="img-fluid" src="{% static 'assets/images/dashboard-2/order/sub-product/11.png' %}" alt=""></div>
-                        <div> 
-                          <h6 class="f-14 mb-0 f-w-500">Sleeper</h6><a class="c-o-light" href="#!">#452140 </a>
-                        </div>
-                      </div>
-                    </td>
-                    <td>Courtney Henry</td>
-                    <td>2 PCS</td>
-                    <td>$2,854</td>
-                    <td>16 Jan,2024</td>
-                    <td> 
-                      <button class="btn button-light-success txt-success f-w-500">Delivered</button>
-                    </td>
-                  </tr>
-                  <tr>
-                    <td></td>
-                    <td>
-                      <div class="d-flex align-items-center gap-2">
-                        <div class="currency-icon warning"><img class="img-fluid" src="{% static 'assets/images/dashboard-2/order/sub-product/14.png' %}" alt=""></div>
-                        <div> 
-                          <h6 class="f-14 mb-0 f-w-500">Shoes</h6><a class="c-o-light" href="#!">#844967</a>
-                        </div>
-                      </div>
-                    </td>
-                    <td>Esther Howard</td>
-                    <td>1 PCS</td>
-                    <td>$9,943</td>
-                    <td>21 Feb,2024</td>
-                    <td> 
-                      <button class="btn button-light-warning txt-warning f-w-500">In Progress</button>
-                    </td>
-                  </tr>
+                <tbody>
+                    {% for order in recent_orders %}
+                    <tr> 
+                      <td>#{{ order.order_id }}</td>
+                      <td>
+                        {{ order.name_goods|slice:":40" }}{% if order.name_goods|length > 40 %}...{% endif %}
+                      </td>
+                      <td>{{ order.variant_text }}</td>
+                      <td>{{ order.package_id }}</td>
+                      <td>{{ order.buyer_email }}</td>
+                      <td>${{ order.purchase_amount }}</td>
+                      <td>{{ order.purchase_date|date:"d M, Y" }}</td>
+                      <td>
+                        <button class="btn button-light-success txt-success f-w-500">
+                          {{ order.status|capfirst }}
+                        </button>
+                      </td>
+                    </tr>
+                    {% endfor %}
                 </tbody>
               </table>
             </div>

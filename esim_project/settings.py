@@ -37,7 +37,7 @@ DIGISELLER_API_KEY = config("DIGISELLER_API_KEY")
 SECRET_KEY = config("DJANGO_SECRET_KEY")
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = False
+DEBUG = True
 
 ALLOWED_HOSTS = ['4e92-45-127-51-133.ngrok-free.app', ' https://4e92-45-127-51-133.ngrok-free.app', '*']
 

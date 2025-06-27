@@ -118,5 +118,147 @@
     <script src="{% static 'assets/js/script.js' %}"></script>
     <script src="{% static 'assets/js/script1.js' %}"></script>
     <script src="{% static 'assets/js/theme-customizer/customizer.js' %}"></script>
+
+    <script>
+      fetch('/api/monthly-order-totals/')
+        .then(response => response.json())
+        .then(data => {
+          var saleReport = {
+            series: [
+                      {
+                        name: "Failed Orders",
+                        type: "column",
+                        data: JSON.parse('{{ failed_orders_per_month|safe }}'),
+                      },
+                      {
+                        name: "Total Sales",
+                        type: "line",
+                        data: JSON.parse('{{ monthly_totals|safe }}'),
+                      },
+                      {
+                        name: "Orders",
+                        type: "line",
+                        data: JSON.parse('{{ sales_per_month|safe }}'),
+                      },
+                    ],
+            chart: {
+              height: 295,
+              type: "line",
+              stacked: false,
+              toolbar: {
+                show: false,
+              },
+              dropShadow: {
+                enabled: true,
+                enabledOnSeries: [2],
+                top: 10,
+                left: 0,
+                blur: 4,
+                color: "#7366FF",
+                opacity: 0.2,
+              },
+            },
+            stroke: {
+              width: [0, 2, 3],
+              curve: "smooth",
+              dashArray: [0, 8, 0],
+            },
+            plotOptions: {
+              bar: {
+                columnWidth: "30%",
+              },
+            },
+            colors: ["var(--chart-progress-light)", "#ffb829", "#7366FF"],
+            fill: {
+              type: "solid",
+              gradient: {
+                shade: "dark",
+                type: "vertical",
+                opacityFrom: 1,
+                opacityTo: 1,
+                stops: [0, 100],
+              },
+            },
+            grid: {
+              borderColor: "var(--chart-border)",
+              yaxis: {
+                lines: {
+                  show: true,
+                },
+              },
+            },
+            legend: {
+              show: false,
+            },
+            markers: {
+              size: 0,
+            },
+            xaxis: {
+              categories: ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"],
+              labels: {
+                style: {
+                  fontFamily: "Rubik, sans-serif",
+                  colors: ["#52526c"],
+                },
+              },
+              axisBorder: {
+                show: false,
+              },
+              axisTicks: {
+                show: false,
+              },
+            },
+            yaxis: {
+              title: {
+                text: "Points",
+              },
+              min: 0,
+              title: {
+                text: undefined,
+              },
+            },
+            responsive: [
+              {
+                breakpoint: 1870,
+                options: {
+                  chart: {
+                    height: 300,
+                  },
+                },
+              },
+              {
+                breakpoint: 1350,
+                options: {
+                  chart: {
+                    height: 310,
+                  },
+                },
+              },
+              {
+                breakpoint: 1250,
+                options: {
+                  chart: {
+                    height: 300,
+                  },
+                },
+              },
+              {
+                breakpoint: 486,
+                options: {
+                  xaxis: {
+                    tickAmount: 4,
+                  },
+                },
+              },
+            ],
+          };
+
+          var saleReportChart = new ApexCharts(document.querySelector("#sale_reports"), saleReport);
+          saleReportChart.render();
+        })
+        .catch(error => {
+          console.error('Error fetching monthly totals:', error);
+        });
+    </script>
   </body>
 </html> 

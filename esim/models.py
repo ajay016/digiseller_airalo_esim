@@ -246,7 +246,7 @@ class DigisellerVariant(models.Model):
         related_name="variants"
     )
     variant_value            = models.PositiveIntegerField()  # from `value`
-    text                     = models.CharField(max_length=255)
+    text                     = models.CharField(max_length=500)
     default                  = models.BooleanField(default=False)
     modify                   = models.CharField(max_length=50, blank=True, null=True)
     modify_value             = models.DecimalField(max_digits=12, decimal_places=2, blank=True, null=True)
@@ -336,6 +336,13 @@ class DigisellerOrder(models.Model):
         ('failed',   'Failed'),
         ('completed','Completed'),
     ]
+    DIGISELLER_TRANSACTION_STATUS_CHOICES = [
+        (1, 'Not Verified'),
+        (2, 'Delivered'),
+        (3, 'Delivery Confirmed'),
+        (4, 'Refuted'),
+        (5, 'Delivery Pending'),
+    ]
 
     # Raw webhook fields
     order_id       = models.PositiveIntegerField(unique=True)        # ID_I
@@ -377,6 +384,7 @@ class DigisellerOrder(models.Model):
 
     # Processing
     status                = models.CharField(max_length=20, choices=STATUS_CHOICES, default='received')
+    digiseller_transaction_status = models.IntegerField(choices=DIGISELLER_TRANSACTION_STATUS_CHOICES, default=1)
     error_message         = models.TextField(blank=True, null=True)
 
     created_at            = models.DateTimeField(default=timezone.now)

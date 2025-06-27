@@ -19,6 +19,7 @@ from django.core.cache import cache
 from rest_framework.response import Response
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
+from datetime import datetime
 from django.db.models import Count
 from django.views.decorators.csrf import csrf_exempt
 from typing import Dict, List, Tuple
@@ -420,12 +421,13 @@ def get_purchase_info(order_id: int, token: str) -> Dict:
     return resp.json().get("content", {})
 
 
-def validate_product(content: Dict, product_id: int) -> None:
+def validate_product(content: Dict, product_id: int, order_id: int) -> None:
     """Ensure product matches and unique_code_state == 1; else skip."""
     if content.get("item_id") != product_id:
         raise SkipWebhook("item_id does not match product_id")
 
     if content.get("unique_code_state", {}).get("state") != 1:
+        update_digiseller_order(order_id, content.get("unique_code_state", {}).get("state"))
         raise SkipWebhook("unique_code_state.state != 1")
 
 
@@ -459,7 +461,7 @@ def handle_digiseller_webhook(payload: Dict) -> None:
     Orchestrates the full processing flow; raises SkipWebhook when
     the event should be ignored and lets other exceptions propagate.
     """
-    order_id   = payload.get("ID_I")
+    order_id   = int(payload.get("ID_I", 0))
     product_id = payload.get("ID_D")
 
     product_qs = DigisellerProduct.objects.filter(id_goods=product_id)
@@ -468,12 +470,13 @@ def handle_digiseller_webhook(payload: Dict) -> None:
 
     token    = get_digiseller_token()
     content  = get_purchase_info(order_id, token)
-    validate_product(content, product_id)
+    validate_product(content, product_id, order_id)
 
     product      = product_qs.get()
     variants     = find_matching_variants(product, content.get("options", []))
     buyer_info   = content.get("buyer_info", {})
     quantity     = content.get("cnt_goods", 1)
+    purchase_date_raw     = content.get("purchase_date", '')
 
     # --- For now just log; later call Airalo & persist order ---
     for variant, airalo_pkg in variants:
@@ -483,7 +486,7 @@ def handle_digiseller_webhook(payload: Dict) -> None:
         persist_and_queue(
             product, variant, airalo_pkg,
             buyer_info, quantity,
-            content, order_id
+            content, order_id, purchase_date_raw
         )
         
         email = buyer_info.get("email")
@@ -499,8 +502,14 @@ def handle_digiseller_webhook(payload: Dict) -> None:
         # queue_airalo_purchase(...)
         
         
-def persist_and_queue(product, variant, airalo_pkg, buyer_info, quantity, content, order_id):
+def persist_and_queue(product, variant, airalo_pkg, buyer_info, quantity, content, order_id, purchase_date_raw):
     """Create DigisellerOrder and enqueue Celery task."""
+    # Parse purchase_date string (e.g., "29.05.2025 8:49:40")
+    try:
+        purchase_date = datetime.strptime(purchase_date_raw, "%d.%m.%Y %H:%M:%S")
+    except (ValueError, TypeError):
+        purchase_date = None  # Fallback if parsing fails
+
     # email = buyer_info.get("email")
     digiseller_order = DigisellerOrder.objects.create(
         order_id=order_id,
@@ -514,8 +523,22 @@ def persist_and_queue(product, variant, airalo_pkg, buyer_info, quantity, conten
         purchase_amount=content.get("amount"),
         purchase_currency=content.get("currency_type"),
         invoice_state=content.get("invoice_state"),
+        purchase_date=purchase_date,
+        digiseller_transaction_status=content.get("unique_code_state", {}).get("state", 1),
         raw_payload=content,
         status="received",
     )
     
     purchase_airalo_sim.delay(digiseller_order.id)
+    
+    
+def update_digiseller_order(order_id: int, status: int) -> None:
+    """Update only the digiseller_transaction_status field of an existing order."""
+
+    try:
+        order = DigisellerOrder.objects.get(id=order_id)
+        order.digiseller_transaction_status = status
+        order.save(update_fields=['digiseller_transaction_status'])
+        print(f"Updated order {order_id} with status {status}")
+    except DigisellerOrder.DoesNotExist:
+        pass  # Or handle/log error appropriately
