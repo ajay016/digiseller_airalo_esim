@@ -24,6 +24,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.http import JsonResponse, HttpResponseBadRequest
 
 from django.conf import settings
+from typing import Dict, List, Tuple
 import requests
 import traceback
 import logging
@@ -242,163 +243,203 @@ def unique_operator_count(request):
 
 
 
-
-# def purchase_airalo_sim(digiseller_order_id):
-#     try:
-#         order = DigisellerOrder.objects.select_related("airalo_package").get(pk=digiseller_order_id)
-#     except DigisellerOrder.DoesNotExist:
-#         print(f"❌ Order with ID {digiseller_order_id} not found.")
-#         return
-
-#     order.status = "processing"
-#     order.save(update_fields=["status"])
-
-#     payload = {
-#         "quantity": int(order.quantity),
-#         "package_id": order.airalo_package.package_id,
-#         "type": "sim",
-#         "description": f"{order.quantity} {order.airalo_package.package_id}",
-#         "brand_settings_name": "",
-        
-#         "to_email": "ajayghosh28@gmail.com",
-#         "sharing_option[]": "pdf",
-#         "copy_address[]": "ajayghosh28@gmail.com"
-#     }
-    
-#     print('payload for Airalo order creation:', payload)
-    
-#     print('Airalo package id in automated order creation:', order.airalo_package.package_id)
-
-#     api_token = get_airalo_token()
-#     print(f"🔑 Using Airalo API token: {api_token}")
-#     headers = {
-#         "Authorization": f"Bearer {api_token}",
-#         "Accept": "application/json",
-#     }
-
-#     try:
-#         r = requests.post(
-#             f"{AIRALO_BASE_API_URL}/v2/orders",
-#             headers=headers,
-#             data=payload,  # Airalo expects multipart/form-data
-#             timeout=15,
-#         )
-        
-#         # 👇 Print full response for debugging
-#         print("🔁 Airalo Response Status:", r.status_code)
-#         print("🔁 Airalo Response Headers:", r.headers)
-#         try:
-#             print("🔁 Airalo Response JSON:", r.json())
-#         except Exception:
-#             print("🔁 Airalo Response Text (not JSON):", r.text)
-#     except Exception as exc:
-#         order.status = "failed"
-#         order.error_message = str(exc)
-#         order.save(update_fields=["status", "error_message"])
-#         print(f"❌ Exception during API request: {exc}")
-#         traceback.print_exc()
-#         return
-
-#     if r.status_code != 200:
-#         order.status = "failed"
-#         order.error_message = f"HTTP {r.status_code}: {r.text}"
-#         order.save(update_fields=["status", "error_message"])
-#         print(f"❌ Airalo API error: HTTP {r.status_code} - {r.text}")
-#         return
-
-#     try:
-#         data = r.json()["data"]
-#     except Exception as e:
-#         order.status = "failed"
-#         order.error_message = f"Invalid JSON response: {r.text}"
-#         order.save(update_fields=["status", "error_message"])
-#         print(f"❌ Failed to parse JSON: {r.text}")
-#         traceback.print_exc()
-#         return
-
-#     try:
-#         airalo_order = AiraloOrder.objects.create(
-#             airalo_id=data["id"],
-#             code=data["code"],
-#             currency=data["currency"],
-#             package_id=data["package_id"],
-#             quantity=data["quantity"],
-#             type=data["type"],
-#             description=data["description"],
-#             esim_type=data.get("esim_type"),
-#             validity=data.get("validity"),
-#             package_title=data.get("package"),
-#             data=data.get("data"),
-#             price=data["price"],
-#             created_at_api=timezone.datetime.strptime(data["created_at"], "%Y-%m-%d %H:%M:%S"),
-#             manual_installation=data.get("manual_installation"),
-#             qrcode_installation=data.get("qrcode_installation"),
-#             installation_guides=data.get("installation_guides"),
-#             net_price=data.get("net_price"),
-#             raw_payload=data,
-#         )
-
-#         for sim in data.get("sims", []):
-#             AiraloSim.objects.create(
-#                 airalo_order=airalo_order,
-#                 sim_id=sim["id"],
-#                 iccid=sim["iccid"],
-#                 lpa=sim["lpa"],
-#                 qrcode=sim["qrcode"],
-#                 qrcode_url=sim["qrcode_url"],
-#                 direct_apple_installation_url=sim.get("direct_apple_installation_url"),
-#                 apn_type=sim.get("apn_type"),
-#                 apn_value=sim.get("apn_value"),
-#                 is_roaming=sim.get("is_roaming", False),
-#                 raw_payload=sim,
-#             )
-
-#         order.airalo_order = airalo_order
-#         order.status = "completed"
-#         order.save(update_fields=["airalo_order", "status"])
-
-#         print("✅ Airalo order created:", airalo_order.code)
-#         for sim in airalo_order.sims.all():
-#             print("   ▶ ICCID:", sim.iccid)
-
-#     except Exception as db_exc:
-#         order.status = "failed"
-#         order.error_message = f"DB Save Error: {db_exc}"
-#         order.save(update_fields=["status", "error_message"])
-#         print(f"❌ Exception during saving AiraloOrder or SIMs: {db_exc}")
-#         traceback.print_exc()
-#         return
-    
-    
-    
-    
-    
-
-
-
-@csrf_exempt
-@require_POST
-def airalo_webhook_callback(request):
+@shared_task(bind=True, max_retries=3, default_retry_delay=60)
+def purchase_airalo_sim(digiseller_order_id):
+    from digiseller.views import get_digiseller_token
     try:
-        payload = json.loads(request.body.decode("utf-8"))
-        print("Received Airalo webhook payload:", payload)
+        order = DigisellerOrder.objects.select_related("airalo_package").get(pk=digiseller_order_id)
+    except DigisellerOrder.DoesNotExist:
+        print(f"❌ Order with ID {digiseller_order_id} not found.")
+        return
 
-        # Print all headers
-        print("Received Airalo webhook headers:")
-        for header_name, header_value in request.headers.items():
-            print(f"  {header_name}: {header_value}")
+    order.status = "processing"
+    order.save(update_fields=["status"])
 
-        # You can also access specific headers like this:
-        # if 'User-Agent' in request.headers:
-        #     print(f"  User-Agent: {request.headers['User-Agent']}")
-        # if 'X-Airalo-Signature' in request.headers: # Example for a potential signature header
-        #     print(f"  X-Airalo-Signature: {request.headers['X-Airalo-Signature']}")
+    payload = {
+        "quantity": int(order.quantity),
+        "package_id": order.airalo_package.package_id,
+        "type": "sim",
+        "description": f"{order.quantity} {order.airalo_package.package_id}",
+        "brand_settings_name": "",
+        
+        "to_email": "ajayghosh28@gmail.com",
+        "sharing_option[]": "pdf",
+        "copy_address[]": "ajayghosh28@gmail.com"
+    }
+    
+    print('payload for Airalo order creation:', payload)
+    
+    print('Airalo package id in automated order creation:', order.airalo_package.package_id)
 
-    except json.JSONDecodeError:
-        print("Invalid JSON received in Airalo webhook")
-        return HttpResponseBadRequest("Invalid JSON")
+    api_token = get_airalo_token()
+    print(f"🔑 Using Airalo API token: {api_token}")
+    headers = {
+        "Authorization": f"Bearer {api_token}",
+        "Accept": "application/json",
+    }
+
+    try:
+        r = requests.post(
+            f"{AIRALO_BASE_API_URL}/v2/orders",
+            headers=headers,
+            data=payload,  # Airalo expects multipart/form-data
+            timeout=15,
+        )
+        
+        # 👇 Print full response for debugging
+        print("🔁 Airalo Response Status:", r.status_code)
+        print("🔁 Airalo Response Headers:", r.headers)
+        try:
+            print("🔁 Airalo Response JSON:", r.json())
+        except Exception:
+            print("🔁 Airalo Response Text (not JSON):", r.text)
+    except Exception as exc:
+        order.status = "failed"
+        order.error_message = str(exc)
+        order.save(update_fields=["status", "error_message"])
+        print(f"❌ Exception during API request: {exc}")
+        traceback.print_exc()
+        return
+
+    if r.status_code != 200:
+        order.status = "failed"
+        order.error_message = f"HTTP {r.status_code}: {r.text}"
+        order.save(update_fields=["status", "error_message"])
+        print(f"❌ Airalo API error: HTTP {r.status_code} - {r.text}")
+        return
+
+    try:
+        data = r.json()["data"]
     except Exception as e:
-        print(f"An unexpected error occurred: {e}")
-        return HttpResponseBadRequest("An unexpected error occurred")
+        order.status = "failed"
+        order.error_message = f"Invalid JSON response: {r.text}"
+        order.save(update_fields=["status", "error_message"])
+        print(f"❌ Failed to parse JSON: {r.text}")
+        traceback.print_exc()
+        return
 
-    return JsonResponse({"status": "processed"})
+    try:
+        airalo_order = AiraloOrder.objects.create(
+            airalo_id=data["id"],
+            code=data["code"],
+            currency=data["currency"],
+            package_id=data["package_id"],
+            quantity=data["quantity"],
+            type=data["type"],
+            description=data["description"],
+            esim_type=data.get("esim_type"),
+            validity=data.get("validity"),
+            package_title=data.get("package"),
+            data=data.get("data"),
+            price=data["price"],
+            created_at_api=timezone.datetime.strptime(data["created_at"], "%Y-%m-%d %H:%M:%S"),
+            manual_installation=data.get("manual_installation"),
+            qrcode_installation=data.get("qrcode_installation"),
+            installation_guides=data.get("installation_guides"),
+            net_price=data.get("net_price"),
+            raw_payload=data,
+        )
+
+        for sim in data.get("sims", []):
+            AiraloSim.objects.create(
+                airalo_order=airalo_order,
+                sim_id=sim["id"],
+                iccid=sim["iccid"],
+                lpa=sim["lpa"],
+                qrcode=sim["qrcode"],
+                qrcode_url=sim["qrcode_url"],
+                direct_apple_installation_url=sim.get("direct_apple_installation_url"),
+                apn_type=sim.get("apn_type"),
+                apn_value=sim.get("apn_value"),
+                is_roaming=sim.get("is_roaming", False),
+                raw_payload=sim,
+            )
+
+        order.airalo_order = airalo_order
+        order.status = "completed"
+        order.digiseller_transaction_status = 2
+        order.save(update_fields=["airalo_order", "status", "digiseller_transaction_status"])
+        
+        # call the API function here
+
+        print("✅ Airalo order created:", airalo_order.code)
+        for sim in airalo_order.sims.all():
+            print("   ▶ ICCID:", sim.iccid)
+            
+        try:
+            deliver_unique_code(order.unique_code)
+        except Exception as exc:
+            print(f"❌ Failed to call Digiseller deliver endpoint: {exc}")
+        else:
+            # deliver_response already printed inside helper
+            print("✅ Digiseller deliver endpoint completed.")
+
+    except Exception as db_exc:
+        order.status = "failed"
+        order.error_message = f"DB Save Error: {db_exc}"
+        order.save(update_fields=["status", "error_message"])
+        print(f"❌ Exception during saving AiraloOrder or SIMs: {db_exc}")
+        traceback.print_exc()
+        return
+    
+    
+def deliver_unique_code(code: str):
+    from digiseller.views import get_digiseller_token
+    """
+    Tell Digiseller “Ive delivered the goods for this unique code.”
+    PUT https://api.digiseller.com/api/purchases/unique-code/{code}/deliver?token={token}
+    """
+    token = get_digiseller_token()
+    print(f"🔑 Using Digiseller API token++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++: {token}")
+    url = (
+        f"https://api.digiseller.com/api/purchases/"
+        f"unique-code/{code}/deliver?token={token}"
+    )
+    headers = {
+        "Accept": "application/json",
+    }
+    resp = requests.put(url, headers=headers, timeout=10)
+    # for debugging, always print full status & body
+    print("🔔 Digiseller deliver status:", resp.status_code)
+    try:
+        payload = resp.json()
+        print("🔔 Digiseller deliver response JSON:", json.dumps(payload, indent=2))
+    except ValueError:
+        payload = {"text": resp.text}
+        print("🔔 Digiseller deliver response text:", resp.text)
+    resp.raise_for_status()
+    return payload
+    
+    
+    
+    
+    
+
+
+
+# @csrf_exempt
+# @require_POST
+# def airalo_webhook_callback(request):
+#     try:
+#         payload = json.loads(request.body.decode("utf-8"))
+#         print("Received Airalo webhook payload:", payload)
+
+#         # Print all headers
+#         print("Received Airalo webhook headers:")
+#         for header_name, header_value in request.headers.items():
+#             print(f"  {header_name}: {header_value}")
+
+#         # You can also access specific headers like this:
+#         # if 'User-Agent' in request.headers:
+#         #     print(f"  User-Agent: {request.headers['User-Agent']}")
+#         # if 'X-Airalo-Signature' in request.headers: # Example for a potential signature header
+#         #     print(f"  X-Airalo-Signature: {request.headers['X-Airalo-Signature']}")
+
+#     except json.JSONDecodeError:
+#         print("Invalid JSON received in Airalo webhook")
+#         return HttpResponseBadRequest("Invalid JSON")
+#     except Exception as e:
+#         print(f"An unexpected error occurred: {e}")
+#         return HttpResponseBadRequest("An unexpected error occurred")
+
+#     return JsonResponse({"status": "processed"})

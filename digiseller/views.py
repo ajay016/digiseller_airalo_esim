@@ -23,6 +23,7 @@ from datetime import datetime
 from django.db.models import Count
 from django.views.decorators.csrf import csrf_exempt
 from typing import Dict, List, Tuple
+from django.http import HttpResponse
 import base64
 from django.conf import settings
 import requests
@@ -48,61 +49,68 @@ PRODUCT_DETAIL_URL = "https://api.digiseller.com/api/products/{product_id}/data?
 SELLER_ID = settings.DIGISELLER_SELLER_ID
 API_KEY = settings.DIGISELLER_API_KEY
 
+MAX_RETRIES = 3
+RETRY_DELAY_SECONDS = 2
+
 # 1. Manage Digiseller token creation with caching
 def get_digiseller_token():
     """
     Get a valid Digiseller token from cache or request a new one using their API.
+    Retries on failure with exponential backoff.
     """
     token = cache.get(DIGISELLER_TOKEN_CACHE_KEY)
     if token:
-        return token  # ✅ still valid
+        return token
 
-    # 🔒 Step 1: Generate sign
     timestamp = int(time.time())
     signature = hashlib.sha256(f"{API_KEY}{timestamp}".encode('utf-8')).hexdigest()
 
-    # 🧾 Step 2: Prepare payload
     payload = {
         "seller_id": SELLER_ID,
         "timestamp": timestamp,
         "sign": signature
     }
 
-    try:
-        response = requests.post(TOKEN_API_URL, json=payload, timeout=10)
-        response.raise_for_status()
-        result = json.loads(response.content.decode('utf-8-sig'))  # decode BOM if present
+    for attempt in range(1, MAX_RETRIES + 1):
+        try:
+            print(f"🔁 Attempt {attempt} to get Digiseller token")
+            response = requests.post(TOKEN_API_URL, json=payload, timeout=10)
+            response.raise_for_status()
 
-        # Step 3: Check Digiseller-specific retval
-        if result.get("retval") != 0:
-            raise Exception(f"Digiseller error {result.get('retval')}: {result.get('desc')}")
+            result = json.loads(response.content.decode('utf-8-sig'))
 
-        token = result.get("token")
-        valid_thru_str = result.get("valid_thru")
+            if result.get("retval") != 0:
+                raise Exception(f"Digiseller error {result.get('retval')}: {result.get('desc')}")
 
-        if not token or not valid_thru_str:
-            raise Exception("Token or valid_thru missing from response")
+            token = result.get("token")
+            valid_thru_str = result.get("valid_thru")
 
-        # Step 4: Parse validity and compute TTL
-        valid_thru = parse_datetime(valid_thru_str)
-        if valid_thru is None:
-            raise Exception(f"Invalid valid_thru format: {valid_thru_str}")
+            if not token or not valid_thru_str:
+                raise Exception("Token or valid_thru missing from response")
 
-        if valid_thru.tzinfo is None:
-            valid_thru = timezone.make_aware(valid_thru, timezone.utc)
+            valid_thru = parse_datetime(valid_thru_str)
+            if valid_thru is None:
+                raise Exception(f"Invalid valid_thru format: {valid_thru_str}")
 
-        now = timezone.now()
-        ttl_seconds = int((valid_thru - now).total_seconds())
+            if valid_thru.tzinfo is None:
+                valid_thru = timezone.make_aware(valid_thru, timezone.utc)
 
-        if ttl_seconds <= 0:
-            raise Exception("Received expired token")
+            now = timezone.now()
+            ttl_seconds = int((valid_thru - now).total_seconds())
+            if ttl_seconds <= 0:
+                raise Exception("Received expired token")
 
-        # ✅ Step 5: Cache the token for its exact TTL
-        cache.set(DIGISELLER_TOKEN_CACHE_KEY, token, timeout=ttl_seconds)
-        return token
+            cache.set(DIGISELLER_TOKEN_CACHE_KEY, token, timeout=ttl_seconds)
+            print("✅ Token obtained and cached")
+            return token
 
-    except Exception as e:
-        raise Exception(f"Failed to obtain Digiseller token: {e}")
+        except Exception as e:
+            print(f"❌ Attempt {attempt} failed: {e}")
+            if attempt == MAX_RETRIES:
+                raise Exception(f"Failed to obtain Digiseller token after {MAX_RETRIES} attempts: {e}")
+            else:
+                time.sleep(RETRY_DELAY_SECONDS * attempt)  # exponential backoff
+    
 
 # 2. Fetch seller goods list with generated token
 def fetch_seller_goods(rows=200, page=2):
@@ -387,30 +395,128 @@ def digiseller_webhook_test(request):
 
 
 
-@csrf_exempt
-@require_POST
-def digiseller_webhook_callback(request):
-    try:
-        payload = json.loads(request.body.decode("utf-8"))
-    except json.JSONDecodeError:
-        return HttpResponseBadRequest("Invalid JSON")
+# @csrf_exempt
+# @require_POST
+# def digiseller_webhook_callback(request):
+#     try:
+#         payload = json.loads(request.body.decode("utf-8"))
+#         print('webhook payload: ', payload)
+#     except json.JSONDecodeError:
+#         return HttpResponseBadRequest("Invalid JSON")
 
-    try:
-        handle_digiseller_webhook(payload)
-    except SkipWebhook as exc:
-        # Nothing to do for this event (invalid product, duplicate, etc.)
-        print(f"ℹ️  {exc}")
-        return JsonResponse({"status": "no action needed"})
-    except Exception as exc:
-        # Unexpected error – log & surface 5xx so Digiseller retries
-        print(f"❗️ Internal error: {exc}")
-        return JsonResponse({"error": "internal failure"}, status=500)
+#     try:
+#         handle_digiseller_webhook(payload)
+#     except SkipWebhook as exc:
+#         # Nothing to do for this event (invalid product, duplicate, etc.)
+#         print(f"ℹ️  {exc}")
+#         return JsonResponse({"status": "no action needed"})
+#     except Exception as exc:
+#         # Unexpected error – log & surface 5xx so Digiseller retries
+#         print(f"❗️ Internal error: {exc}")
+#         return JsonResponse({"error": "internal failure"}, status=500)
 
-    return JsonResponse({"status": "processed"})
+#     return JsonResponse({"status": "processed"})
 
 
 class SkipWebhook(Exception):
     """Raised when a webhook should be safely ignored (not an error)."""
+    
+    
+# @require_GET
+# def digiseller_deliver(request):
+#     code = request.GET.get("uniquecode")
+#     if not code:
+#         return HttpResponseBadRequest("Missing code")
+
+#     # 1. Call the Digiseller “unique‑code” API to fetch its content,
+#     #    including inv (your order_id) and unique_code_state.state.
+#     verify_unique_code_and_get_info(code)
+#     # data = verify_unique_code_and_get_info(code)
+#     # if data["unique_code_state"]["state"] != 1:
+#     #     return HttpResponse("Payment not confirmed", status=402)
+
+#     # 5. Redirect buyer to your thank‑you page
+#     # return HttpResponseRedirect("/thank-you/")
+#     return render(request, "order_confirmation/order_confirmation.html", {
+#         "code": code
+#     })
+
+
+@require_GET
+def digiseller_deliver(request):
+    code = request.GET.get("uniquecode")
+    if not code:
+        return HttpResponseBadRequest("Missing code")
+
+    try:
+        digiseller_order = verify_unique_code_and_get_info(code)
+    except SkipWebhook as exc:
+        return HttpResponse(f"Order ignored: {exc}", status=200)
+    except Exception as exc:
+        return HttpResponse(f"Server error: {exc}", status=500)
+    
+    variant = digiseller_order.variant
+    package = variant.airalo_package if variant else None
+    
+    # Extract validity from package_id
+    validity = None
+    if package and package.package_id:
+        parts = package.package_id.split("-")
+        for part in parts:
+            if "day" in part.lower():
+                try:
+                    number = int(part.lower().replace("days", "").replace("day", ""))
+                    validity = f"{number} Days"
+                    break
+                except ValueError:
+                    pass
+
+    context = {
+        "order_id": digiseller_order.order_id,
+        "product": digiseller_order.product,
+        "variant": digiseller_order.variant.text,
+        "quantity": digiseller_order.quantity,
+        "purchase_amount": digiseller_order.purchase_amount,
+        "purchase_currency": digiseller_order.purchase_currency,
+        "purchase_date": digiseller_order.purchase_date,
+        "unique_code": digiseller_order.unique_code,
+        "validity": validity
+    }
+
+    return render(request, "order_confirmation/order_confirmation.html", context)
+
+
+def verify_unique_code_and_get_info(code: str) -> Dict:
+    token = get_digiseller_token()
+    url = f"https://api.digiseller.com/api/purchases/unique-code/{code}?token={token}"
+    resp = requests.get(url, timeout=10)
+    resp.raise_for_status()
+
+    data = resp.json()
+    print("Digiseller API response from unique code:", data)  # Debug print
+    print('data: ', data)
+
+    inv = data.get("inv")
+    id_goods = data.get("id_goods")
+
+    if not inv or inv == 0:
+        raise ValueError(f"Invalid or missing 'inv' in Digiseller response: {inv}")
+    if not id_goods or id_goods == 0:
+        raise ValueError(f"Invalid or missing 'id_goods' (product ID) in Digiseller response: {id_goods}")
+
+    try:
+        digiseller_order = handle_digiseller_webhook(data, code)
+    except SkipWebhook as exc:
+        # Nothing to do for this event (invalid product, duplicate, etc.)
+        print(f"ℹ️  {exc}")
+        raise  # Let it propagate so you can handle it in the view
+    except Exception as exc:
+        # Unexpected error – log & surface 5xx so Digiseller retries
+        print(f"❗️ Internal error: {exc}")
+        raise
+
+
+    return digiseller_order
 
 
 def get_purchase_info(order_id: int, token: str) -> Dict:
@@ -426,15 +532,15 @@ def validate_product(content: Dict, product_id: int, order_id: int) -> None:
     if content.get("item_id") != product_id:
         raise SkipWebhook("item_id does not match product_id")
 
-    if content.get("unique_code_state", {}).get("state") != 1:
-        update_digiseller_order(order_id, content.get("unique_code_state", {}).get("state"))
-        raise SkipWebhook("unique_code_state.state != 1")
+    # if content.get("unique_code_state", {}).get("state") != 1:
+    #     update_digiseller_order(order_id, content.get("unique_code_state", {}).get("state"))
+    #     raise SkipWebhook("unique_code_state.state != 1")
 
 
 def find_matching_variants(
-    product: DigisellerProduct,
-    options: List[Dict]
-) -> List[Tuple[DigisellerVariant, Package]]:
+        product: DigisellerProduct,
+        options: List[Dict]
+    ) -> List[Tuple[DigisellerVariant, Package]]:
     """Return [(variant, airalo_package), …] for any matching user_data_id."""
     matches = []
 
@@ -456,13 +562,13 @@ def find_matching_variants(
     return matches
 
 
-def handle_digiseller_webhook(payload: Dict) -> None:
+def handle_digiseller_webhook(data: Dict, code) -> None:
     """
     Orchestrates the full processing flow; raises SkipWebhook when
     the event should be ignored and lets other exceptions propagate.
     """
-    order_id   = int(payload.get("ID_I", 0))
-    product_id = payload.get("ID_D")
+    order_id   = data.get("inv")
+    product_id = data.get("id_goods")
 
     product_qs = DigisellerProduct.objects.filter(id_goods=product_id)
     if not product_qs.exists():
@@ -470,6 +576,7 @@ def handle_digiseller_webhook(payload: Dict) -> None:
 
     token    = get_digiseller_token()
     content  = get_purchase_info(order_id, token)
+    print('content after webhook: ', content)
     validate_product(content, product_id, order_id)
 
     product      = product_qs.get()
@@ -483,10 +590,10 @@ def handle_digiseller_webhook(payload: Dict) -> None:
         print("▶️ Airalo package:", airalo_pkg.package_id)
         
         # save the digiseller order
-        persist_and_queue(
+        digiseller_order = persist_and_queue(
             product, variant, airalo_pkg,
             buyer_info, quantity,
-            content, order_id, purchase_date_raw
+            content, order_id, purchase_date_raw, code
         )
         
         email = buyer_info.get("email")
@@ -497,16 +604,20 @@ def handle_digiseller_webhook(payload: Dict) -> None:
             "method":   buyer_info.get("payment_method"),
             "quantity": quantity,
         })
+        
+        return digiseller_order
 
         # create_digiseller_order(...)
         # queue_airalo_purchase(...)
         
         
-def persist_and_queue(product, variant, airalo_pkg, buyer_info, quantity, content, order_id, purchase_date_raw):
+def persist_and_queue(product, variant, airalo_pkg, buyer_info, quantity, content, order_id, purchase_date_raw, code):
     """Create DigisellerOrder and enqueue Celery task."""
     # Parse purchase_date string (e.g., "29.05.2025 8:49:40")
     try:
         purchase_date = datetime.strptime(purchase_date_raw, "%d.%m.%Y %H:%M:%S")
+        if timezone.is_naive(purchase_date):
+            purchase_date = timezone.make_aware(purchase_date)
     except (ValueError, TypeError):
         purchase_date = None  # Fallback if parsing fails
 
@@ -517,7 +628,8 @@ def persist_and_queue(product, variant, airalo_pkg, buyer_info, quantity, conten
         variant=variant,
         airalo_package=airalo_pkg,
         quantity=quantity,
-        buyer_email="ajayghosh28@gmail.com",   # FORCED for testing
+        buyer_email=buyer_info.get("email"),
+        # buyer_email="ajayghosh28@gmail.com",
         buyer_ip=buyer_info.get("ip_address"),
         buyer_payment_method=buyer_info.get("payment_method"),
         purchase_amount=content.get("amount"),
@@ -527,9 +639,12 @@ def persist_and_queue(product, variant, airalo_pkg, buyer_info, quantity, conten
         digiseller_transaction_status=content.get("unique_code_state", {}).get("state", 1),
         raw_payload=content,
         status="received",
+        unique_code=code
     )
     
     purchase_airalo_sim.delay(digiseller_order.id)
+    
+    return digiseller_order
     
     
 def update_digiseller_order(order_id: int, status: int) -> None:

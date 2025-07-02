@@ -124,6 +124,9 @@ def sync_data(request):
 @login_required
 def digiseller_products(request):
     digiseller_products = DigisellerProduct.objects.all()
+    two_day_packs = Package.objects.filter(package_id__icontains="2days")
+    
+    print("two_day_packs:", two_day_packs.count())
     
     context = {
         'digiseller_products': digiseller_products,
@@ -257,3 +260,21 @@ def update_variants(request):
 #     print("Packages found:", packages.count())
     
 #     return JsonResponse({'packages': data})
+
+
+def digiseller_deliver(request):
+    """
+    Handles Digiseller redirect with ?uniquecode=...
+    Also extracts and logs all other query parameters.
+    """
+    code = request.GET.get('uniquecode')
+    
+    print("Digiseller Deliver Code*****************************************:", code)
+
+    # Get all query parameters as a dictionary
+    all_params = request.GET.dict()
+    print("All query parameters:*****************************************:", all_params)
+
+
+    # Continue with your logic...
+    return render(request, 'digiseller/digiseller_deliver.html', {'code': code})

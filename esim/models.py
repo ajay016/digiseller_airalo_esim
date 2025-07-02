@@ -386,6 +386,11 @@ class DigisellerOrder(models.Model):
     status                = models.CharField(max_length=20, choices=STATUS_CHOICES, default='received')
     digiseller_transaction_status = models.IntegerField(choices=DIGISELLER_TRANSACTION_STATUS_CHOICES, default=1)
     error_message         = models.TextField(blank=True, null=True)
+    
+    unique_code           = models.CharField(max_length=16, null=True, blank=True)
+    order_info_received   = models.BooleanField(default=False)
+    payment_verified      = models.BooleanField(default=False)
+    task_enqueued         = models.BooleanField(default=False)
 
     created_at            = models.DateTimeField(default=timezone.now)
     updated_at            = models.DateTimeField(auto_now=True)

@@ -129,12 +129,35 @@ class APNAdmin(admin.ModelAdmin):
     search_fields = ('operator__title', 'ios_apn_type', 'android_apn_type')
 
 
-@admin.register(Package)
 class PackageAdmin(admin.ModelAdmin):
-    list_display = ('title', 'operator', 'type', 'price', 'day', 'is_unlimited', 'is_fair_usage_policy')
-    list_filter = ('operator', 'type', 'is_unlimited', 'is_fair_usage_policy')
-    search_fields = ('title', 'operator__title', 'package_id')
-    readonly_fields = ('qr_installation', 'manual_installation', 'fair_usage_policy')
+    list_display = (
+        'title',
+        'package_id',  # Fixed missing comma between fields
+        'operator',
+        'type',
+        'price',
+        'day',
+        'is_unlimited',
+        'is_fair_usage_policy',
+    )
+    list_filter = (
+        'operator',
+        'type',
+        'is_unlimited',
+        'is_fair_usage_policy',
+    )
+    search_fields = (
+        'title',
+        'operator__title',
+        'package_id',
+    )
+    readonly_fields = (
+        'qr_installation',
+        'manual_installation',
+        'fair_usage_policy',
+    )
+
+admin.site.register(Package, PackageAdmin)
 
 
 @admin.register(AiraloToken)
@@ -262,11 +285,11 @@ class AiraloSimAdmin(admin.ModelAdmin):
 @admin.register(DigisellerOrder)
 class DigisellerOrderAdmin(admin.ModelAdmin):
     list_display = (
-        'order_id', 'product', 'variant', 'airalo_package',
+        'order_id', 'digiseller_transaction_status', 'unique_code', 'product', 'variant', 'airalo_package',
         'status', 'purchase_amount', 'purchase_currency',
         'buyer_email', 'purchase_date'
     )
-    search_fields = ('order_id', 'buyer_email')
+    search_fields = ('order_id', 'buyer_email', 'digiseller_transaction_status')
     list_filter = ('status', 'purchase_currency', 'invoice_state')
     readonly_fields = ('created_at', 'updated_at')
     raw_id_fields = ('product', 'variant', 'airalo_package', 'airalo_order')
@@ -274,7 +297,7 @@ class DigisellerOrderAdmin(admin.ModelAdmin):
     fieldsets = (
         (None, {
             'fields': (
-                'order_id', 'product', 'variant', 'airalo_package',
+                'order_id', 'product', 'unique_code', 'variant', 'airalo_package',
                 'quantity', 'is_my_product'
             )
         }),
