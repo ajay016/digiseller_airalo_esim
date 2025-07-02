@@ -1,3 +1,8 @@
+{% load i18n %}
+{% load l10n %}
+{% get_current_language as LANGUAGE_CODE %}
+{% get_available_languages as LANGUAGES %}
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -273,49 +278,63 @@
 </head>
 <body>
     <div class="confirmation-container">
+        <form method="get" action="" class="lang-switcher">
+            <label for="lang-select">{% trans "Language" %}:</label>
+            <select name="lang" id="lang-select" onchange="this.form.submit()">
+                {% for code, name in available_langs %}
+                <option value="{{ code }}" {% if code == current_lang %}selected{% endif %}>
+                    {% trans name %}
+                </option>
+                {% endfor %}
+            </select>
+            {# keep the uniquecode in the URL #}
+            <input type="hidden" name="uniquecode" value="{{ unique_code }}">
+        </form>
         <div class="confirmation-header">
             <div class="confirmation-icon">
                 ✓
             </div>
-            <h1>Your eSIM Order Is Confirmed!</h1>
-            <p class="thank-you">Thank you for your purchase. Your digital eSIM is ready to use.</p>
-            <div class="status-badge">Will be Active & Ready to Install Very Soon</div>
+            <h1>{% trans "Your eSIM Order Is Confirmed!" %}</h1>
+            <p class="thank-you">{% trans "Thank you for your purchase! Your digital eSIM is on its way and should arrive in your inbox within minutes. Inside the email, you'll find a link to your personal account where your eSIM details and activation instructions are ready for you. For a smooth start to your trip, please activate your eSIM a few hours before departure or once you've arrived at your destination." %}</p>
+            <div class="status-badge">{% trans "Will be Active & Ready to Install Very Soon" %}</div>
         </div>
         
         <div class="order-summary">
             <div class="summary-header">
-                <h2>Order Summary</h2>
-                <div class="order-number">Order ID: {{ order_id }}</div>
+                <h2>{% trans "Order Summary" %}</h2>
+                <div class="order-number">{% trans "Order ID" %}: {{ order_id }}</div>
             </div>
             
             <div class="summary-details">
                 <div>
                     <div class="detail-group">
-                        <span class="detail-label">Plan</span>
+                        <span class="detail-label">{% trans "Plan" %}</span>
                         <span class="detail-value">{{ variant }}</span>
                     </div>
                     <div class="detail-group">
-                        <span class="detail-label">Validity</span>
+                        <span class="detail-label">{% trans "Validity" %}</span>
                         <span class="detail-value">{{ validity }}</span>
                     </div>
                     <div class="detail-group">
-                        <span class="detail-label">Unique Code</span>
+                        <span class="detail-label">{% trans "Unique Code" %}</span>
                         <span class="detail-value">{{ unique_code }}</span>
                     </div>
                 </div>
                 
                 <div>
                     <div class="detail-group">
-                        <span class="detail-label">Purchase Date</span>
-                        <span class="detail-value">{{ purchase_date }}</span>
+                        <span class="detail-label">{% trans "Purchase Date" %}</span>
+                        {% localize off %}
+                            <span class="detail-value">{{ purchase_date|unlocalize }}</span>
+                        {% endlocalize %}
                     </div>
                     <div class="detail-group">
-                        <span class="detail-label">Activation</span>
-                        <span class="detail-value">Instant</span>
+                        <span class="detail-label">{% trans "Activation" %}</span>
+                        <span class="detail-value">{% trans "Instant" %}</span>
                     </div>
                     <div class="detail-group">
-                        <span class="detail-label">Total Paid</span>
-                        <span class="detail-value">{{ purchase_amount }}</span>
+                        <span class="detail-label">{% trans "Total Paid" %}</span>
+                        <span class="detail-value">₽ {{ purchase_amount }}</span>
                     </div>
                 </div>
             </div>

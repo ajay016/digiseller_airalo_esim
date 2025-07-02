@@ -24,6 +24,7 @@ from django.db.models import Count
 from django.views.decorators.csrf import csrf_exempt
 from typing import Dict, List, Tuple
 from django.http import HttpResponse
+from django.utils import translation
 import base64
 from django.conf import settings
 import requests
@@ -444,6 +445,19 @@ class SkipWebhook(Exception):
 
 @require_GET
 def digiseller_deliver(request):
+    lang = request.GET.get('lang', 'ru')
+    if lang not in dict(settings.LANGUAGES):
+        lang = 'ru'
+
+    # 2) Activate it
+    translation.activate(lang)
+    request.LANGUAGE_CODE = lang
+    
+    print("DEBUG: GET params =", dict(request.GET))
+    
+    lang = request.GET.get('lang', 'ru')
+    print("DEBUG: requested lang =", lang)
+    
     code = request.GET.get("uniquecode")
     if not code:
         return HttpResponseBadRequest("Missing code")
@@ -472,6 +486,8 @@ def digiseller_deliver(request):
                     pass
 
     context = {
+        'current_lang': lang,
+        'available_langs': settings.LANGUAGES,
         "order_id": digiseller_order.order_id,
         "product": digiseller_order.product,
         "variant": digiseller_order.variant.text,
@@ -613,6 +629,13 @@ def handle_digiseller_webhook(data: Dict, code) -> None:
         
 def persist_and_queue(product, variant, airalo_pkg, buyer_info, quantity, content, order_id, purchase_date_raw, code):
     """Create DigisellerOrder and enqueue Celery task."""
+    try:
+        digiseller_order = DigisellerOrder.objects.get(order_id=order_id)
+        print(f"Order {order_id} already exists. Skipping creation and task queue.")
+        return digiseller_order
+    except DigisellerOrder.DoesNotExist:
+        pass  # Proceed to create the order
+    
     # Parse purchase_date string (e.g., "29.05.2025 8:49:40")
     try:
         purchase_date = datetime.strptime(purchase_date_raw, "%d.%m.%Y %H:%M:%S")
@@ -628,8 +651,8 @@ def persist_and_queue(product, variant, airalo_pkg, buyer_info, quantity, conten
         variant=variant,
         airalo_package=airalo_pkg,
         quantity=quantity,
-        buyer_email=buyer_info.get("email"),
-        # buyer_email="ajayghosh28@gmail.com",
+        # buyer_email=buyer_info.get("email"),
+        buyer_email="ajayghosh28@gmail.com",
         buyer_ip=buyer_info.get("ip_address"),
         buyer_payment_method=buyer_info.get("payment_method"),
         purchase_amount=content.get("amount"),
