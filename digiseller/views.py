@@ -461,12 +461,21 @@ def digiseller_deliver(request):
     code = request.GET.get("uniquecode")
     if not code:
         return HttpResponseBadRequest("Missing code")
+    
+    # Save failed order record early
+    if not DigisellerOrder.objects.filter(unique_code=code).exists():
+        failed_order, created = DigisellerFailedOrder.objects.get_or_create(
+            unique_code=code,
+            defaults={"status": "pending"}
+        )
 
     try:
         digiseller_order = verify_unique_code_and_get_info(code)
     except SkipWebhook as exc:
+        DigisellerFailedOrder.objects.filter(unique_code=code).update(status="skipped")
         return HttpResponse(f"Order ignored: {exc}", status=200)
     except Exception as exc:
+        DigisellerFailedOrder.objects.filter(unique_code=code).update(status="error")
         return HttpResponse(f"Server error: {exc}", status=500)
     
     variant = digiseller_order.variant
@@ -631,7 +640,7 @@ def persist_and_queue(product, variant, airalo_pkg, buyer_info, quantity, conten
     """Create DigisellerOrder and enqueue Celery task."""
     try:
         digiseller_order = DigisellerOrder.objects.get(order_id=order_id)
-        print(f"Order {order_id} already exists. Skipping creation and task queue.")
+        DigisellerFailedOrder.objects.filter(unique_code=code).delete()
         return digiseller_order
     except DigisellerOrder.DoesNotExist:
         pass  # Proceed to create the order
@@ -666,6 +675,8 @@ def persist_and_queue(product, variant, airalo_pkg, buyer_info, quantity, conten
     )
     
     purchase_airalo_sim.delay(digiseller_order.id)
+    
+    DigisellerFailedOrder.objects.filter(unique_code=code).delete()
     
     return digiseller_order
     

@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-07-03 02:17+0600\n"
+"POT-Creation-Date: 2025-07-04 00:01+0600\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -29,8 +29,17 @@ msgid "Your eSIM Order Is Confirmed!"
 msgstr "Ваш заказ eSIM подтвержден!"
 
 #: .\digiseller\templates\order_confirmation\order_confirmation.html:298
-msgid "Thank you for your purchase. Your digital eSIM is ready to use."
-msgstr "Благодарим вас за покупку. Ваша цифровая eSIM готова к использованию."
+msgid ""
+"Thank you for your purchase! Your digital eSIM is on its way and should "
+"arrive in your inbox within minutes. Inside the email, you'll find a link to "
+"your personal account where your eSIM details and activation instructions "
+"are ready for you. For a smooth start to your trip, please activate your "
+"eSIM a few hours before departure or once you've arrived at your destination."
+msgstr ""
+"Благодарим вас за покупку. Ваша цифровая eSim будет у вас на почте в течении "
+"нескольких минут. Внутри письма вы найдете ссылку в ваш личный кабинет, где "
+"будет ваша покупка и инструкция по активации продукта. Пожалуйста "
+"активируйте eSim за несколько часов до вылета или уже в стране назначения."
 
 #: .\digiseller\templates\order_confirmation\order_confirmation.html:299
 msgid "Will be Active & Ready to Install Very Soon"
@@ -49,8 +58,8 @@ msgid "Plan"
 msgstr "План"
 
 #: .\digiseller\templates\order_confirmation\order_confirmation.html:315
-msgid "Validity"
-msgstr "Действительность"
+msgid "Active period after eSIM activation"
+msgstr "Активный период после активации esim"
 
 #: .\digiseller\templates\order_confirmation\order_confirmation.html:319
 msgid "Unique Code"
@@ -62,11 +71,11 @@ msgstr "Дата покупки"
 
 #: .\digiseller\templates\order_confirmation\order_confirmation.html:332
 msgid "Activation"
-msgstr "моментально"
+msgstr "Активация"
 
 #: .\digiseller\templates\order_confirmation\order_confirmation.html:333
-msgid "Instant"
-msgstr ""
+msgid "Instantly"
+msgstr "Немедленно"
 
 #: .\digiseller\templates\order_confirmation\order_confirmation.html:336
 msgid "Total Paid"
@@ -75,9 +84,6 @@ msgstr "Всего оплачено"
 #: .\esim\admin.py:22
 msgid "Personal Info"
 msgstr ""
-
-msgid "Thank you for your purchase! Your digital eSIM is on its way and should arrive in your inbox within minutes. Inside the email, you'll find a link to your personal account where your eSIM details and activation instructions are ready for you. For a smooth start to your trip, please activate your eSIM a few hours before departure or once you've arrived at your destination."
-msgstr "Благодарим вас за покупку. Ваша цифровая eSim будет у вас на почте в течении нескольких минут. Внутри письма вы найдете ссылку в ваш личный кабинет, где будет ваша покупка и инструкция по активации продукта. Пожалуйста активируйте eSim за несколько часов до вылета или уже в стране назначения."
 
 #: .\esim\admin.py:25
 msgid "Permissions"
@@ -2039,6 +2045,13 @@ msgstr ""
 #: .\venv\djcelery\templates\djcelery\confirm_rate_limit.html:22
 msgid "Rate limit"
 msgstr ""
+
+#~ msgid "Thank you for your purchase. Your digital eSIM is ready to use."
+#~ msgstr ""
+#~ "Благодарим вас за покупку. Ваша цифровая eSIM готова к использованию."
+
+#~ msgid "Validity"
+#~ msgstr "Действительность"
 
 #~ msgid "English"
 #~ msgstr "Английский"

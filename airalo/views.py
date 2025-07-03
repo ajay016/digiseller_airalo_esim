@@ -40,7 +40,8 @@ logger = logging.getLogger(__name__)  # Optional: use logger if configured
 
 
 # Constants
-AIRALO_BASE_API_URL = "https://sandbox-partners-api.airalo.com"
+# AIRALO_BASE_API_URL = "https://sandbox-partners-api.airalo.com"
+AIRALO_BASE_API_URL = "https://partners-api.airalo.com"
 
 TOKEN_URL = f"{AIRALO_BASE_API_URL}/v2/token"
 PACKAGES_URL = f"{AIRALO_BASE_API_URL}/v2/packages?limit=200"
@@ -58,7 +59,11 @@ def get_airalo_token(force=False):
         "grant_type": (None, "client_credentials"),
     }
     
-    resp = requests.post(TOKEN_URL, files=files)
+    headers = {
+        "Accept": "application/json"
+    }
+    
+    resp = requests.post(TOKEN_URL, files=files, headers=headers)
     if resp.status_code in (401, 422):
         raise Exception(f"Token error {resp.status_code}: {resp.json()}")
     resp.raise_for_status()
@@ -245,7 +250,6 @@ def unique_operator_count(request):
 
 @shared_task(bind=True, max_retries=3, default_retry_delay=60)
 def purchase_airalo_sim(digiseller_order_id):
-    from digiseller.views import get_digiseller_token
     try:
         order = DigisellerOrder.objects.select_related("airalo_package").get(pk=digiseller_order_id)
     except DigisellerOrder.DoesNotExist:
@@ -263,7 +267,7 @@ def purchase_airalo_sim(digiseller_order_id):
         "brand_settings_name": "",
         
         "to_email": "ajayghosh28@gmail.com",
-        "sharing_option[]": "pdf",
+        "sharing_option[]": "link",
         "copy_address[]": "ajayghosh28@gmail.com"
     }
     

@@ -317,3 +317,19 @@ class DigisellerOrderAdmin(admin.ModelAdmin):
             'fields': ('cart_uid', 'raw_payload', 'created_at', 'updated_at')
         }),
     )
+    
+
+
+@admin.register(DigisellerFailedOrder)
+class DigisellerFailedOrderAdmin(admin.ModelAdmin):
+    list_display = ('unique_code', 'status', 'created_at')
+    list_filter = ('status', 'created_at')
+    search_fields = ('unique_code',)
+    ordering = ('-created_at',)
+    readonly_fields = ('created_at',)
+
+    fieldsets = (
+        (None, {
+            'fields': ('unique_code', 'status', 'created_at')
+        }),
+    )

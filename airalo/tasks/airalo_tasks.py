@@ -11,7 +11,8 @@ import json
 
 
 
-AIRALO_BASE_API_URL = "https://sandbox-partners-api.airalo.com"
+# AIRALO_BASE_API_URL = "https://sandbox-partners-api.airalo.com"
+AIRALO_BASE_API_URL = "https://partners-api.airalo.com"
 
 
 @shared_task(bind=True, max_retries=3, default_retry_delay=60)
@@ -32,8 +33,8 @@ def purchase_airalo_sim(self, digiseller_order_id):
         "brand_settings_name": "",
         
         "to_email": order.buyer_email,
-        "sharing_option[]": "pdf",
-        "copy_address[]": "ajayghosh28@gmail.com"
+        "sharing_option[]": "link",
+        "copy_address[]": order.buyer_email
     }
     
     api_token = get_airalo_token()

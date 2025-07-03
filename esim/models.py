@@ -404,3 +404,12 @@ class DigisellerOrder(models.Model):
         return f"Order {self.order_id} ({self.get_status_display()})"
     
     
+class DigisellerFailedOrder(models.Model):
+    unique_code = models.CharField(max_length=255, unique=True)
+    status = models.CharField(max_length=100, default="pending")  # e.g., 'pending', 'success', 'error'
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return self.unique_code
+    
+    
