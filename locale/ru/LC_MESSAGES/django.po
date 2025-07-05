@@ -74,8 +74,8 @@ msgid "Activation"
 msgstr "Активация"
 
 #: .\digiseller\templates\order_confirmation\order_confirmation.html:333
-msgid "Instantly"
-msgstr "Немедленно"
+msgid "Immediately"
+msgstr "Моментально"
 
 #: .\digiseller\templates\order_confirmation\order_confirmation.html:336
 msgid "Total Paid"

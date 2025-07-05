@@ -105,7 +105,8 @@ def purchase_airalo_sim(self, digiseller_order_id):
     # ---------- Link back & finish ----------
     order.airalo_order = airalo_order
     order.status       = "completed"
-    order.save(update_fields=["airalo_order", "status"])
+    order.digiseller_transaction_status = 2
+    order.save(update_fields=["airalo_order", "status", "digiseller_transaction_status"])
 
     # For debugging now:
     print("✅ Airalo order created:", airalo_order.code)
@@ -129,7 +130,6 @@ def deliver_unique_code(code: str):
     PUT https://api.digiseller.com/api/purchases/unique-code/{code}/deliver?token={token}
     """
     token = get_digiseller_token()
-    print(f"🔑 Using Digiseller API token++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++: {token}")
     url = (
         f"https://api.digiseller.com/api/purchases/"
         f"unique-code/{code}/deliver?token={token}"
@@ -139,12 +139,9 @@ def deliver_unique_code(code: str):
     }
     resp = requests.put(url, headers=headers, timeout=10)
     # for debugging, always print full status & body
-    print("🔔 Digiseller deliver status:", resp.status_code)
     try:
         payload = resp.json()
-        print("🔔 Digiseller deliver response JSON:", json.dumps(payload, indent=2))
     except ValueError:
         payload = {"text": resp.text}
-        print("🔔 Digiseller deliver response text:", resp.text)
     resp.raise_for_status()
     return payload

@@ -9,24 +9,26 @@ from django.core.files.storage import default_storage
 from io import BytesIO
 from django.core.files.base import ContentFile
 from decimal import Decimal
+import uuid
 
 
 
 
 
 class UserManager(BaseUserManager):
-    def create_user(self, email, user_id=None, username=None, phone_number=None, password=None, user_type=3, **extra_fields):
+    def create_user(self, email, username, password=None, user_id=None, user_type=3, **extra_fields):
         if not email:
             raise ValueError("Email is required")
+        if not username:
+            raise ValueError("Username is required")
         if not password:
             raise ValueError("Password is required")
 
         email = self.normalize_email(email)
         user = self.model(
-            user_id=user_id,
-            username=username,
             email=email,
-            phone_number=phone_number,
+            username=username,
+            user_id=user_id or f"user_{uuid.uuid4().hex[:8]}",
             user_type=user_type,
             **extra_fields
         )
@@ -34,17 +36,17 @@ class UserManager(BaseUserManager):
         user.save(using=self._db)
         return user
 
-    def create_superuser(self, email, user_id=None, username=None, phone_number=None, password=None, **extra_fields):
+    def create_superuser(self, email, username, password=None, user_id=None, **extra_fields):
         extra_fields.setdefault('is_staff', True)
         extra_fields.setdefault('is_superuser', True)
         extra_fields.setdefault('user_type', 0)
 
+        # Let create_user handle user_id generation
         return self.create_user(
             email=email,
-            user_id=user_id or 'admin001',
-            username=username or 'admin',
-            phone_number=phone_number,
+            username=username,
             password=password,
+            user_id=user_id,  # Can be None
             **extra_fields
         )
 
@@ -75,6 +77,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     objects = UserManager()
 
     USERNAME_FIELD = 'email'
+    REQUIRED_FIELDS = ['username']
     # REQUIRED_FIELDS = ['user_id', 'username', 'phone_number']
 
     def __str__(self):

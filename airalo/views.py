@@ -22,7 +22,7 @@ from django.db.models import Count
 from celery import shared_task
 from django.views.decorators.csrf import csrf_exempt
 from django.http import JsonResponse, HttpResponseBadRequest
-
+import traceback
 from django.conf import settings
 from typing import Dict, List, Tuple
 import requests
@@ -40,8 +40,7 @@ logger = logging.getLogger(__name__)  # Optional: use logger if configured
 
 
 # Constants
-# AIRALO_BASE_API_URL = "https://sandbox-partners-api.airalo.com"
-AIRALO_BASE_API_URL = "https://partners-api.airalo.com"
+AIRALO_BASE_API_URL = "https://sandbox-partners-api.airalo.com"
 
 TOKEN_URL = f"{AIRALO_BASE_API_URL}/v2/token"
 PACKAGES_URL = f"{AIRALO_BASE_API_URL}/v2/packages?limit=200"
@@ -90,9 +89,10 @@ def process_country(country_data):
             "image_height": country_data.get("image", {}).get("height"),
         }
     )
-
+    all_errors = []
     for op in country_data.get("operators", []):
         try:
+            image_data = op.get("image") or {}
             operator, _ = Operator.objects.update_or_create(
                 operator_id=op.get("id"), country=country,
                 defaults={
@@ -109,9 +109,9 @@ def process_country(country_data):
                     "is_kyc_verify": op.get("is_kyc_verify"),
                     "rechargeability": op.get("rechargeability"),
                     "other_info": op.get("other_info"),
-                    "image_url": op.get("image", {}).get("url"),
-                    "image_width": op.get("image", {}).get("width"),
-                    "image_height": op.get("image", {}).get("height"),
+                    "image_url": image_data.get("url"),
+                    "image_width": image_data.get("width"),
+                    "image_height": image_data.get("height"),
                 }
             )
 
@@ -176,8 +176,13 @@ def process_country(country_data):
                         }
                     )
                 except Exception as e:
+                    traceback.print_exc()  # 👈 Shows line number, file, call stack
+                    all_errors.append({"level": "package", "reason": str(e), "data": pkg})
+                    print('all errors in first: ', all_errors)
                     AiraloFailedPackage.objects.create(reason=str(e), data=pkg)
         except Exception as e:
+            traceback.print_exc()  # 👈 Shows line number, file, call stack
+            all_errors.append({"level": "operator", "reason": str(e), "data": op})
             AiraloFailedPackage.objects.create(reason=str(e), data=op)
 
     return country.slug
@@ -361,7 +366,7 @@ def purchase_airalo_sim(digiseller_order_id):
 
         order.airalo_order = airalo_order
         order.status = "completed"
-        order.digiseller_transaction_status = 2
+        order.digiseller_transaction_status = 5
         order.save(update_fields=["airalo_order", "status", "digiseller_transaction_status"])
         
         # call the API function here
