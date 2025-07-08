@@ -11,8 +11,8 @@ import json
 
 
 
-# AIRALO_BASE_API_URL = "https://sandbox-partners-api.airalo.com"
-AIRALO_BASE_API_URL = "https://partners-api.airalo.com"
+AIRALO_BASE_API_URL = "https://sandbox-partners-api.airalo.com"
+# AIRALO_BASE_API_URL = "https://partners-api.airalo.com"
 
 
 @shared_task(bind=True, max_retries=3, default_retry_delay=60)
@@ -105,8 +105,7 @@ def purchase_airalo_sim(self, digiseller_order_id):
     # ---------- Link back & finish ----------
     order.airalo_order = airalo_order
     order.status       = "completed"
-    order.digiseller_transaction_status = 2
-    order.save(update_fields=["airalo_order", "status", "digiseller_transaction_status"])
+    order.save(update_fields=["airalo_order", "status"])
 
     # For debugging now:
     print("✅ Airalo order created:", airalo_order.code)
@@ -119,6 +118,8 @@ def purchase_airalo_sim(self, digiseller_order_id):
         print(f"❌ Failed to call Digiseller deliver endpoint: {exc}")
     else:
         # deliver_response already printed inside helper
+        order.digiseller_transaction_status = 2
+        order.save(update_fields=["digiseller_transaction_status"])
         print("✅ Digiseller deliver endpoint completed.")
 
 
