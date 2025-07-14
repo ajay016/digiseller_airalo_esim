@@ -122,11 +122,11 @@ def sync_data(request):
     return render(request, 'sync_data/sync_data.html', context)
 
 @login_required
-def digiseller_products(request):
-    digiseller_products = DigisellerProduct.objects.all()
-    two_day_packs = Package.objects.filter(package_id__icontains="2days")
-    
-    print("two_day_packs:", two_day_packs.count())
+def digiseller_products(request, market_id=None):
+    if market_id:
+        digiseller_products = DigisellerProduct.objects.filter(market__market_id=market_id)
+    else:
+        digiseller_products = DigisellerProduct.objects.all()
     
     context = {
         'digiseller_products': digiseller_products,
@@ -268,12 +268,9 @@ def digiseller_deliver(request):
     Also extracts and logs all other query parameters.
     """
     code = request.GET.get('uniquecode')
-    
-    print("Digiseller Deliver Code*****************************************:", code)
 
     # Get all query parameters as a dictionary
     all_params = request.GET.dict()
-    print("All query parameters:*****************************************:", all_params)
 
 
     # Continue with your logic...

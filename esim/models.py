@@ -225,8 +225,15 @@ class AiraloFailedPackage(models.Model):
     data = models.JSONField(null=True, blank=True)
     
 
+class Market(models.Model):
+    name = models.CharField(max_length=100, unique=True)
+    market_id = models.IntegerField()
+
+    def __str__(self):
+        return self.name
 
 class DigisellerProduct(models.Model):
+    market      = models.ForeignKey(Market, on_delete=models.SET_NULL, related_name='products', blank=True, null=True)
     id_goods    = models.PositiveIntegerField(unique=True)
     name_goods  = models.CharField(max_length=512)
     info_goods  = models.TextField(blank=True, null=True)
@@ -414,5 +421,11 @@ class DigisellerFailedOrder(models.Model):
 
     def __str__(self):
         return self.unique_code
+    
+    
+class DigisellerQueue(models.Model):
+    unique_code = models.CharField(max_length=255, unique=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    status = models.CharField(max_length=50, default="pending")  # Optional: 'pending', 'processing', 'done', 'error'
     
     

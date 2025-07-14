@@ -100,6 +100,18 @@
     <script src="{% static 'assets/js/script1.js' %}"></script>
     <script src="{% static 'assets/js/theme-customizer/customizer.js' %}"></script>
 
+    <script>
+        $(document).ready(function () {
+            const path = window.location.pathname;
+
+            // If not root path `/` or empty
+            if (path !== "/" && path !== "") {
+                // Remove `active` class from all sidebar links
+                $(".dashboard-link").removeClass("active");
+            }
+        });
+    </script>
+
   </body>
 </html>
 

@@ -116,14 +116,14 @@
                 <!-- Digiseller Card -->
                 <div class="col-md-6">
                     <div class="card border-0 shadow-sm h-100" style="background: linear-gradient(135deg, rgba(255, 179, 179, 0.1), rgba(255, 222, 222, 0.2));">
-                        <div class="card-body p-4 d-flex">
+                        <div class="card-body px-4 pt-4 d-flex">
                             <!-- Data Section (30-40%) -->
                             <div class="flex-grow-1 pe-4" style="flex-basis: 40%;">
                                 <div class="d-flex justify-content-between align-items-center mb-4">
                                     <h3 class="card-title mb-0 text-danger">Digiseller</h3>
                                 </div>
                                 
-                                <div class="mb-4">
+                                <div class="">
                                     <div class="d-flex justify-content-between py-2 border-bottom">
                                         <span class="text-muted">Products:</span>
                                         <span class="fw-bold">{{ total_products }}</span>
@@ -142,9 +142,7 @@
                                     </div>
                                 </div>
                                 
-                                <button id="sync-digiseller-btn" class="btn btn-danger mt-auto align-self-start px-4" style="border-radius: 20px;">
-                                    Sync Digiseller Data
-                                </button>
+                                
                             </div>
                             
                             <!-- Visual Section (60-70%) -->
@@ -173,6 +171,21 @@
                                             <small class="text-muted">Conversion</small>
                                         </div>
                                     </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div style="padding-bottom: 20px;">
+                            <div class="d-flex">
+                                <div class="p-2">
+                                    <button id="sync-digiseller-btn" class="btn btn-danger mt-auto align-self-start px-4" style="border-radius: 20px;" data-market-id="1">
+                                        Sync Plati Products
+                                    </button>
+                                </div>
+                                <div class="p-2">
+                                    <button id="sync-digiseller-ggesel-btn" class="btn btn-danger mt-auto align-self-start px-4" style="border-radius: 20px;" data-market-id="1271">
+                                        Sync Ggesel Products
+                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -292,12 +305,25 @@
             });
         });
 
-        // Digiseller sync
+        // Digiseller Plati  productsync
         $('#sync-digiseller-btn').on('click', function () {
+            const ownerId = $(this).data('market-id');
             handleSyncRequest({
                 url: "{% url 'sync_esim_products' %}",
                 method: "POST",
+                body: { owner_id: ownerId },
                 sourceLabel: "Digiseller Data"
+            });
+        });
+
+        // Digiseller Ggesel Products sync
+        $('#sync-digiseller-ggesel-btn').on('click', function () {
+            const ownerId = $(this).data('market-id');
+            handleSyncRequest({
+                url: "{% url 'sync_esim_products' %}",
+                method: "POST",
+                body: { owner_id: ownerId },
+                sourceLabel: "GGesel Digiseller Data"
             });
         });
 

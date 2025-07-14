@@ -5,82 +5,156 @@
   $(".mobile-back").click(function () {
     $("#sidebar-links .nav-menu").css("left", "-410px");
   });
-  $(".page-wrapper").attr("class", "page-wrapper " + localStorage.getItem("page-wrapper-cuba"));
+  $(".page-wrapper").attr(
+    "class",
+    "page-wrapper " + localStorage.getItem("page-wrapper-cuba")
+  );
   if (localStorage.getItem("page-wrapper-cuba") === null) {
     $(".page-wrapper").addClass("compact-wrapper");
   }
 
   // left sidebar and vertical menu
   if ($("#pageWrapper").hasClass("compact-wrapper")) {
-    jQuery(".sidebar-title").append('<div class="according-menu"><i class="fa-solid fa-angle-right"></i></div>');
+    jQuery(".sidebar-title").append(
+      '<div class="according-menu"><i class="fa-solid fa-angle-right"></i></div>'
+    );
     jQuery(".sidebar-title").click(function () {
-      jQuery(".sidebar-title").removeClass("active").find("div").replaceWith('<div class="according-menu"><i class="fa-solid fa-angle-right"></i></div>');
+      jQuery(".sidebar-title")
+        .removeClass("active")
+        .find("div")
+        .replaceWith(
+          '<div class="according-menu"><i class="fa-solid fa-angle-right"></i></div>'
+        );
       jQuery(".sidebar-submenu, .menu-content").slideUp("normal");
       jQuery(".menu-content").slideUp("normal");
       if (jQuery(this).next().is(":hidden") == true) {
         jQuery(this).addClass("active");
-        jQuery(this).find("div").replaceWith('<div class="according-menu"><i class="fa-solid fa-angle-down"></i></div>');
+        jQuery(this)
+          .find("div")
+          .replaceWith(
+            '<div class="according-menu"><i class="fa-solid fa-angle-down"></i></div>'
+          );
         jQuery(this).next().slideDown("normal");
       } else {
-        jQuery(this).find("div").replaceWith('<div class="according-menu"><i class="fa-solid fa-angle-right"></i></div>');
+        jQuery(this)
+          .find("div")
+          .replaceWith(
+            '<div class="according-menu"><i class="fa-solid fa-angle-right"></i></div>'
+          );
       }
     });
+    jQuery(".sidebar-title.link-nav").click(function() {
+        // Remove active class from all links
+        jQuery(".sidebar-title.link-nav").removeClass("active");
+        // Add active class to clicked link
+        jQuery(this).addClass("active");
+    });
     jQuery(".sidebar-submenu, .menu-content").hide();
-    jQuery(".submenu-title").append('<div class="according-menu"><i class="fa-solid fa-angle-right"></i></div>');
+    jQuery(".submenu-title").append(
+      '<div class="according-menu"><i class="fa-solid fa-angle-right"></i></div>'
+    );
     jQuery(".submenu-title").click(function () {
-      jQuery(".submenu-title").removeClass("active").find("div").replaceWith('<div class="according-menu"><i class="fa-solid fa-angle-right"></i></div>');
+      jQuery(".submenu-title")
+        .removeClass("active")
+        .find("div")
+        .replaceWith(
+          '<div class="according-menu"><i class="fa-solid fa-angle-right"></i></div>'
+        );
       jQuery(".sidebar-submenu li .sidebar-submenu").slideUp("normal");
       if (jQuery(this).next().is(":hidden") == true) {
         jQuery(this).addClass("active");
-        jQuery(this).find("div").replaceWith('<div class="according-menu"><i class="fa-solid fa-angle-down"></i></div>');
+        jQuery(this)
+          .find("div")
+          .replaceWith(
+            '<div class="according-menu"><i class="fa-solid fa-angle-down"></i></div>'
+          );
         jQuery(this).next().slideDown("normal");
       } else {
-        jQuery(this).find("div").replaceWith('<div class="according-menu"><i class="fa-solid fa-angle-right"></i></div>');
+        jQuery(this)
+          .find("div")
+          .replaceWith(
+            '<div class="according-menu"><i class="fa-solid fa-angle-right"></i></div>'
+          );
       }
     });
     jQuery(".sidebar-submenu li .sidebar-submenu").hide();
-  } else if ($("#pageWrapper").hasClass("horizontal-wrapper")) {
+  }
+  else if ($("#pageWrapper").hasClass("horizontal-wrapper")) {
     var smallSize = false,
       bigSize = false;
     const horizontalMenu = () => {
       var contentwidth = jQuery(window).width();
       if (contentwidth <= 992 && !smallSize) {
         (smallSize = true), (bigSize = false);
-        $("#pageWrapper").removeClass("horizontal-wrapper").addClass("compact-wrapper");
-        $(".page-body-wrapper").removeClass("horizontal-menu").addClass("sidebar-icon");
-        jQuery(".submenu-title").append('<div class="according-menu"><i class="fa-solid fa-angle-right"></i></div>');
+        $("#pageWrapper")
+          .removeClass("horizontal-wrapper")
+          .addClass("compact-wrapper");
+        $(".page-body-wrapper")
+          .removeClass("horizontal-menu")
+          .addClass("sidebar-icon");
+        jQuery(".submenu-title").append(
+          '<div class="according-menu"><i class="fa-solid fa-angle-right"></i></div>'
+        );
         jQuery(".submenu-title").click(function () {
           jQuery(".submenu-title").removeClass("active");
-          jQuery(".submenu-title").find("div").replaceWith('<div class="according-menu"><i class="fa-solid fa-angle-right"></i></div>');
+          jQuery(".submenu-title")
+            .find("div")
+            .replaceWith(
+              '<div class="according-menu"><i class="fa-solid fa-angle-right"></i></div>'
+            );
           jQuery(".sidebar-submenu li .sidebar-submenu").slideUp("normal");
           if (jQuery(this).next().is(":hidden") == true) {
             jQuery(this).addClass("active");
-            jQuery(this).find("div").replaceWith('<div class="according-menu"><i class="fa-solid fa-angle-down"></i></div>');
+            jQuery(this)
+              .find("div")
+              .replaceWith(
+                '<div class="according-menu"><i class="fa-solid fa-angle-down"></i></div>'
+              );
             jQuery(this).next().slideDown("normal");
           } else {
-            jQuery(this).find("div").replaceWith('<div class="according-menu"><i class="fa-solid fa-angle-right"></i></div>');
+            jQuery(this)
+              .find("div")
+              .replaceWith(
+                '<div class="according-menu"><i class="fa-solid fa-angle-right"></i></div>'
+              );
           }
         });
         jQuery(".sidebar-submenu li .sidebar-submenu").hide();
 
-        jQuery(".sidebar-title").append('<div class="according-menu"><i class="fa-solid fa-angle-right"></i></div>');
+        jQuery(".sidebar-title").append(
+          '<div class="according-menu"><i class="fa-solid fa-angle-right"></i></div>'
+        );
         jQuery(".sidebar-title").click(function () {
           jQuery(".sidebar-title").removeClass("active");
-          jQuery(".sidebar-title").find("div").replaceWith('<div class="according-menu"><i class="fa-solid fa-angle-right"></i></div>');
+          jQuery(".sidebar-title")
+            .find("div")
+            .replaceWith(
+              '<div class="according-menu"><i class="fa-solid fa-angle-right"></i></div>'
+            );
           jQuery(".sidebar-submenu, .menu-content").slideUp("normal");
           if (jQuery(this).next().is(":hidden") == true) {
             jQuery(this).addClass("active");
-            jQuery(this).find("div").replaceWith('<div class="according-menu"><i class="fa-solid fa-angle-down"></i></div>');
+            jQuery(this)
+              .find("div")
+              .replaceWith(
+                '<div class="according-menu"><i class="fa-solid fa-angle-down"></i></div>'
+              );
             jQuery(this).next().slideDown("normal");
           } else {
-            jQuery(this).find("div").replaceWith('<div class="according-menu"><i class="fa-solid fa-angle-right"></i></div>');
+            jQuery(this)
+              .find("div")
+              .replaceWith(
+                '<div class="according-menu"><i class="fa-solid fa-angle-right"></i></div>'
+              );
           }
         });
         jQuery(".sidebar-submenu, .menu-content").hide();
       }
       if (contentwidth > 992 && !bigSize) {
         (smallSize = false), (bigSize = true);
-        $("#pageWrapper").removeClass("compact-wrapper").addClass("horizontal-wrapper");
+        $("#pageWrapper")
+          .removeClass("compact-wrapper")
+          .addClass("horizontal-wrapper");
         jQuery(".sidebar-title .according-menu").remove();
       }
     };
@@ -116,16 +190,31 @@
       }
     });
     jQuery(".sidebar-submenu, .menu-content").hide();
-    jQuery(".submenu-title").append('<div class="according-menu"><i class="fa-solid fa-angle-right"></i></div>');
+    jQuery(".submenu-title").append(
+      '<div class="according-menu"><i class="fa-solid fa-angle-right"></i></div>'
+    );
     jQuery(".submenu-title").click(function () {
-      jQuery(".submenu-title").removeClass("active").find("div").replaceWith('<div class="according-menu"><i class="fa-solid fa-angle-right"></i></div>');
+      jQuery(".submenu-title")
+        .removeClass("active")
+        .find("div")
+        .replaceWith(
+          '<div class="according-menu"><i class="fa-solid fa-angle-right"></i></div>'
+        );
       jQuery(".sidebar-submenu li .sidebar-submenu").slideUp("normal");
       if (jQuery(this).next().is(":hidden") == true) {
         jQuery(this).addClass("active");
-        jQuery(this).find("div").replaceWith('<div class="according-menu"><i class="fa-solid fa-angle-down"></i></div>');
+        jQuery(this)
+          .find("div")
+          .replaceWith(
+            '<div class="according-menu"><i class="fa-solid fa-angle-down"></i></div>'
+          );
         jQuery(this).next().slideDown("normal");
       } else {
-        jQuery(this).find("div").replaceWith('<div class="according-menu"><i class="fa-solid fa-angle-right"></i></div>');
+        jQuery(this)
+          .find("div")
+          .replaceWith(
+            '<div class="according-menu"><i class="fa-solid fa-angle-right"></i></div>'
+          );
       }
     });
     jQuery(".sidebar-submenu li .sidebar-submenu").hide();
@@ -271,8 +360,26 @@
           $(this).parents().children("a").addClass("active");
           $(this).parents().parents().children("ul").css("display", "block");
           $(this).addClass("active");
-          $(this).parent().parent().parent().children("a").find("div").replaceWith('<div class="according-menu"><i class="fa-solid fa-angle-down"></i></div>');
-          $(this).parent().parent().parent().parent().parent().children("a").find("div").replaceWith('<div class="according-menu"><i class="fa-solid fa-angle-down"></i></div>');
+          $(this)
+            .parent()
+            .parent()
+            .parent()
+            .children("a")
+            .find("div")
+            .replaceWith(
+              '<div class="according-menu"><i class="fa-solid fa-angle-down"></i></div>'
+            );
+          $(this)
+            .parent()
+            .parent()
+            .parent()
+            .parent()
+            .parent()
+            .children("a")
+            .find("div")
+            .replaceWith(
+              '<div class="according-menu"><i class="fa-solid fa-angle-down"></i></div>'
+            );
           return false;
         }
       }
@@ -340,10 +447,15 @@
   }
 
   // active link
-  if ($(".simplebar-wrapper .simplebar-content-wrapper") && $("#pageWrapper").hasClass("compact-wrapper")) {
+  if (
+    $(".simplebar-wrapper .simplebar-content-wrapper") &&
+    $("#pageWrapper").hasClass("compact-wrapper")
+  ) {
     $(".simplebar-wrapper .simplebar-content-wrapper").animate(
       {
-        scrollTop: $(".simplebar-wrapper .simplebar-content-wrapper a.active").offset().top - 400,
+        scrollTop:
+          $(".simplebar-wrapper .simplebar-content-wrapper a.active").offset()
+            .top - 400,
       },
       1000
     );

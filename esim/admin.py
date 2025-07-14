@@ -160,6 +160,9 @@ class PackageAdmin(admin.ModelAdmin):
 admin.site.register(Package, PackageAdmin)
 
 
+
+
+
 @admin.register(AiraloToken)
 class AiraloTokenAdmin(admin.ModelAdmin):
     list_display = ('access_token_short', 'expires_at', 'is_valid_now')
@@ -198,14 +201,19 @@ class DigisellerVariantInline(admin.TabularInline):
     )
     show_change_link = True
 
+@admin.register(Market)
+class MarketAdmin(admin.ModelAdmin):
+    list_display = ('name', 'market_id')
+    search_fields = ('name',)
+    ordering = ('name',)
 
 @admin.register(DigisellerProduct)
 class DigisellerProductAdmin(admin.ModelAdmin):
-    list_display = ('id_goods', 'name_goods', 'price', 'currency', 'cnt_sell')
+    list_display = ('id_goods', 'name_goods', 'price', 'currency', 'cnt_sell', 'market')
     search_fields = ('id_goods', 'name_goods', 'currency')
-    list_filter = ('currency',)
-    inlines = [DigisellerVariantInline]
+    list_filter = ('currency', 'market')
     readonly_fields = ('price_usd', 'price_rur', 'price_eur')
+    inlines = [DigisellerVariantInline]
 
 
 @admin.register(DigisellerVariant)

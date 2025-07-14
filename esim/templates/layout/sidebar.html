@@ -28,9 +28,12 @@
           </li>
 
           <li li class="sidebar-list"><i class="fa-solid fa-thumbtack"></i>
-              <a class="sidebar-link sidebar-title link-nav" href="{% url 'dashboard' %}">
-                  <svg class="stroke-icon">
+              <a class="sidebar-link sidebar-title link-nav dashboard-link {% if request.path == '/' %}active{% endif %}"  href="{% url 'dashboard' %}">
+                  {% comment %} <svg class="stroke-icon">
                       <use href="{% static 'assets/svg/icon-sprite.svg' %}#stroke-home"></use>
+                  </svg> {% endcomment %}
+                  <svg xmlns="http://www.w3.org/2000/svg" width="96" height="96" viewBox="0 0 24 24">
+                      <path fill="#5b95b9" d="M4 19v-9q0-.475.213-.9t.587-.7l6-4.5q.525-.4 1.2-.4t1.2.4l6 4.5q.375.275.588.7T20 10v9q0 .825-.588 1.413T18 21h-3q-.425 0-.712-.288T14 20v-5q0-.425-.288-.712T13 14h-2q-.425 0-.712.288T10 15v5q0 .425-.288.713T9 21H6q-.825 0-1.412-.587T4 19" stroke-width="0.8" stroke="#5b95b9" />
                   </svg>
                   <svg class="fill-icon">
                       <use href="{% static 'assets/svg/icon-sprite.svg' %}#fill-home"></use>
@@ -40,9 +43,12 @@
 
           <!--Sync Data-->
           <li li class="sidebar-list"><i class="fa-solid fa-thumbtack"></i>
-              <a class="sidebar-link sidebar-title link-nav" href="{% url 'sync_data' %}">
-                  <svg class="stroke-icon">
-                      <use href="{% static 'assets/svg/icon-sprite.svg' %}#stroke-file"></use>
+              <a class="sidebar-link sidebar-title link-nav {% if request.path == '/sync-data/' %}active{% endif %}" href="{% url 'sync_data' %}">
+                  {% comment %} <svg class="stroke-icon">
+                      <use href="{% static 'assets/svg/icon-sprite.svg' %}#ic--baseline-sync"></use>
+                  </svg> {% endcomment %}
+                  <svg xmlns="http://www.w3.org/2000/svg" width="96" height="96" viewBox="0 0 24 24">
+                      <path fill="#5b95b9" d="M4 20v-2h2.75l-.4-.35q-1.225-1.225-1.787-2.662T4 12.05q0-2.775 1.663-4.937T10 4.25v2.1Q8.2 7 7.1 8.563T6 12.05q0 1.125.425 2.188T7.75 16.2l.25.25V14h2v6zm10-.25v-2.1q1.8-.65 2.9-2.212T18 11.95q0-1.125-.425-2.187T16.25 7.8L16 7.55V10h-2V4h6v2h-2.75l.4.35q1.225 1.225 1.788 2.663T20 11.95q0 2.775-1.662 4.938T14 19.75" stroke-width="0.8" stroke="#5b95b9" />
                   </svg>
                   <svg class="fill-icon">
                       <use href="{% static 'assets/svg/icon-sprite.svg' %}#fill-file"></use>
@@ -54,14 +60,15 @@
           <!--Digiseller-->
           <li class="sidebar-list"><i class="fa-solid fa-thumbtack"></i>
               <a class="sidebar-link sidebar-title" href="#">
-                  <svg class="stroke-icon">
-                      <use href="{% static 'assets/svg/icon-sprite.svg' %}#stroke-home"></use>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="96" height="96" viewBox="0 0 24 24">
+                      <path fill="#5b95b9" d="M7 2H3a1 1 0 0 0-1 1v18a1 1 0 0 0 1 1h4a1 1 0 0 0 1-1V3a1 1 0 0 0-1-1M5 21a2 2 0 1 1 2-2a2 2 0 0 1-2 2m2-9H3V3h4Zm-1 7a1 1 0 1 1-1-1a1 1 0 0 1 1 1m8-17h-4a1 1 0 0 0-1 1v18a1 1 0 0 0 1 1h4a1 1 0 0 0 1-1V3a1 1 0 0 0-1-1m-2 19a2 2 0 1 1 2-2a2 2 0 0 1-2 2m2-9h-4V3h4Zm-1 7a1 1 0 1 1-1-1a1 1 0 0 1 1 1m8-17h-4a1 1 0 0 0-1 1v18a1 1 0 0 0 1 1h4a1 1 0 0 0 1-1V3a1 1 0 0 0-1-1m-2 19a2 2 0 1 1 2-2a2 2 0 0 1-2 2m2-9h-4V3h4Zm-1 7a1 1 0 1 1-1-1a1 1 0 0 1 1 1" stroke-width="0.8" stroke="#5b95b9" />
                   </svg>
                   <svg class="fill-icon">
-                      <use href="{% static 'assets/svg/icon-sprite.svg' %}#fill-home"></use>
+                      <use href="{% static 'assets/svg/icon-sprite.svg' %}#fill-file"></use>
                   </svg><span class="">Digiseller</span></a>
               <ul class="sidebar-submenu">
-                  <li><a class="" href="{% url 'digiseller_products' %}">Digiseller Products</a></li>
+                  <li><a class="" href="{% url 'digiseller_products' global_plati_id %}">Plati Products</a></li>
+                  <li><a class="" href="{% url 'digiseller_products' global_ggesel_id %}">Ggesel Products</a></li>
                   <li><a class="" href="#">Digiseller Product Variants</a></li>
               </ul>
           </li>

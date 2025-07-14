@@ -1954,6 +1954,10 @@
 <path d="M100.898 237.06H43.8799V402.801H144.418V155L100.898 237.06Z" fill="#E5AC39"/>
 </symbol>
 
+<symbol id="ic--baseline-sync" viewBox="0 0 24 24">
+	<path fill="#ce2222" d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6c0 1.01-.25 1.97-.7 2.8l1.46 1.46A7.93 7.93 0 0 0 20 12c0-4.42-3.58-8-8-8m0 14c-3.31 0-6-2.69-6-6c0-1.01.25-1.97.7-2.8L5.24 7.74A7.93 7.93 0 0 0 4 12c0 4.42 3.58 8 8 8v3l4-4l-4-4z" stroke-width="0.8" stroke="#ce2222" />
+</symbol>
+
 <!-- Cart page -->
 <symbol id="fill-wishlist" viewBox="0 0 24 24" fill="" xmlns="http://www.w3.org/2000/svg">
 <g clip-path="url(#clip0_31_58)">

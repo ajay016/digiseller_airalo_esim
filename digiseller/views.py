@@ -114,11 +114,20 @@ def get_digiseller_token():
     
 
 # 2. Fetch seller goods list with generated token
-def fetch_seller_goods(rows=200, page=2):
+def fetch_seller_goods(rows=1000, page=1, owner_id=1):
     token = get_digiseller_token()
-    payload = {"id_seller": SELLER_ID, "order_col": "name", "order_dir": "asc",
-               "rows": rows, "page": page, "currency": "RUR", "lang": "en-US",
-               "show_hidden": 1, "owner_id": 1}
+    payload = {
+        "id_seller": SELLER_ID,
+        "order_col": "name",
+        "order_dir": "asc",
+        "rows": rows,
+        "page": page,
+        "currency": "RUR",
+        "lang": "en-US",
+        "show_hidden": 1,
+        "owner_id": owner_id
+    }
+    print('payload in fetch seller goods: ', payload)
     resp = requests.post(f"{SELLER_GOODS_URL}?token={token}", json=payload, timeout=15)
     try:
         resp.raise_for_status()
@@ -142,14 +151,11 @@ def fetch_product_variants(product_id):
         'Accept': 'application/json',
     }
     
-    print('url of the fetched product variant: ', url)
     resp = requests.get(url, headers=headers, timeout=15)
     try:
         resp.raise_for_status()
-        print('response: ', resp)
         text = resp.content.decode('utf-8-sig')
         raw = json.loads(text)
-        print('json data: ', raw)
         return raw.get("product", {}).get("options", [])
     except Exception as e:
         DigisellerFailedEntry.objects.create(
@@ -162,6 +168,7 @@ def fetch_product_variants(product_id):
 # 5. Save product and its variants
 def save_product_with_variants(prod_data):
     # Save product
+    market = Market.objects.filter(market_id=prod_data["owner_id"]).first()
     product, _ = DigisellerProduct.objects.update_or_create(
         id_goods=prod_data["id_goods"],
         defaults={
@@ -174,10 +181,14 @@ def save_product_with_variants(prod_data):
             "price_usd": prod_data.get("price_usd"),
             "price_rur": prod_data.get("price_rur"),
             "price_eur": prod_data.get("price_eur"),
+            "market": market,
         }
     )
     # Remove old variants
-    product.variants.all().delete()
+    # product.variants.all().delete()
+    
+    # Track current variant_values to find which to delete later
+    updated_variant_values = set()
 
     # Create new variants
     options = fetch_product_variants(product.id_goods)
@@ -185,23 +196,37 @@ def save_product_with_variants(prod_data):
 
     if first_option:
         for variant in first_option.get("variants", []):
+            variant_value = variant.get("value")
+            updated_variant_values.add(variant_value)
+
             try:
-                DigisellerVariant.objects.create(
+                # Create or update variant by variant_value
+                DigisellerVariant.objects.update_or_create(
                     product=product,
-                    variant_value=variant.get("value"),
-                    text=variant.get("text", ""),
-                    default=bool(variant.get("default")),
-                    modify=variant.get("modify"),
-                    modify_value=variant.get("modify_value"),
-                    modify_value_default=variant.get("modify_value_default"),
-                    modify_type=variant.get("modify_type"),
-                    visible=bool(variant.get("visible", 1)),
+                    variant_value=variant_value,
+                    defaults={
+                        "text": variant.get("text", ""),
+                        "default": bool(variant.get("default")),
+                        "modify": variant.get("modify"),
+                        "modify_value": variant.get("modify_value"),
+                        "modify_value_default": variant.get("modify_value_default"),
+                        "modify_type": variant.get("modify_type"),
+                        "visible": bool(variant.get("visible", 1)),
+                    }
                 )
             except Exception as e:
                 DigisellerFailedEntry.objects.create(
                     reason=f"variant save error (prod {product.id_goods}): {e}",
                     data=variant
                 )
+
+    # Delete variants that are no longer present in the fetched data
+    DigisellerVariant.objects.filter(
+        product=product
+    ).exclude(
+        variant_value__in=updated_variant_values
+    ).delete()
+
     return product
 
 # 6. Main view to orchestrate the sync process
@@ -209,8 +234,12 @@ def save_product_with_variants(prod_data):
 @permission_classes([AllowAny])
 def sync_esim_products(request):
     try:
-        raw_products = fetch_seller_goods()
+        owner_id = request.data.get("owner_id", 1)
+        print('owner id in sync data: ', owner_id)
+        raw_products = fetch_seller_goods(owner_id=owner_id)
+        print('raw products: ', raw_products)
         esim_products = filter_esim_products(raw_products)
+        print('esim productss: ', esim_products)
 
         saved_ids = []
         for prod in esim_products:
@@ -459,6 +488,7 @@ def digiseller_deliver(request):
     print("DEBUG: requested lang =", lang)
     
     code = request.GET.get("uniquecode")
+    print('---------unique code--------', code)
     if not code:
         return HttpResponseBadRequest("Missing code")
     
@@ -468,6 +498,7 @@ def digiseller_deliver(request):
             unique_code=code,
             defaults={"status": "pending"}
         )
+        print('--------------Digiseller failed order has been created------------', failed_order)
 
     try:
         digiseller_order = verify_unique_code_and_get_info(code)
@@ -507,6 +538,8 @@ def digiseller_deliver(request):
         "unique_code": digiseller_order.unique_code,
         "validity": validity
     }
+    
+    print('context on order confirmation page')
 
     return render(request, "order_confirmation/order_confirmation.html", context)
 
