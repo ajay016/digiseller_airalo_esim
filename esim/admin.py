@@ -297,7 +297,7 @@ class DigisellerOrderAdmin(admin.ModelAdmin):
         'status', 'purchase_amount', 'purchase_currency',
         'buyer_email', 'purchase_date'
     )
-    search_fields = ('order_id', 'buyer_email', 'digiseller_transaction_status')
+    search_fields = ('order_id', 'buyer_email', 'digiseller_transaction_status', 'unique_code')
     list_filter = ('status', 'purchase_currency', 'invoice_state')
     readonly_fields = ('created_at', 'updated_at')
     raw_id_fields = ('product', 'variant', 'airalo_package', 'airalo_order')
@@ -330,7 +330,7 @@ class DigisellerOrderAdmin(admin.ModelAdmin):
 
 @admin.register(DigisellerFailedOrder)
 class DigisellerFailedOrderAdmin(admin.ModelAdmin):
-    list_display = ('unique_code', 'status', 'created_at')
+    list_display = ('unique_code', 'status', 'retry_count', 'created_at')
     list_filter = ('status', 'created_at')
     search_fields = ('unique_code',)
     ordering = ('-created_at',)
@@ -338,6 +338,6 @@ class DigisellerFailedOrderAdmin(admin.ModelAdmin):
 
     fieldsets = (
         (None, {
-            'fields': ('unique_code', 'status', 'created_at')
+            'fields': ('unique_code', 'status', 'retry_count', 'created_at')
         }),
     )

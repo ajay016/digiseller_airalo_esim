@@ -1,0 +1,405 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Order Confirmation | Your eSIM</title>
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #0d6efd;
+            --primary-light: #3d8bfd;
+            --primary-dark: #0b5ed7;
+            --secondary: #198754;
+            --dark: #212529;
+            --light: #f8f9fa;
+            --gray: #6c757d;
+            --gray-light: #e9ecef;
+            --vibrant-gradient: linear-gradient(135deg, #4361ee, #3a0ca3);
+        }
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8f9fa;
+            color: var(--dark);
+            line-height: 1.4;
+            font-size: 0.9rem;
+        }
+        
+        .confirmation-header {
+            background: linear-gradient(135deg, var(--primary), var(--primary-light));
+            color: white;
+            border-radius: 0.75rem;
+            padding: 1.25rem;
+            margin-bottom: 1.25rem;
+            box-shadow: 0 4px 12px rgba(13, 110, 253, 0.15);
+        }
+        
+        .confirmation-icon {
+            width: 48px;
+            height: 48px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.25rem;
+        }
+        
+        .card {
+            border: none;
+            border-radius: 0.75rem;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+            overflow: hidden;
+            margin-bottom: 1rem;
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+        
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.1);
+        }
+        
+        .card-header {
+            background-color: white;
+            border-bottom: 1px solid var(--gray-light);
+            padding: 0.75rem 1rem;
+            font-weight: 600;
+            font-size: 0.95rem;
+        }
+        
+        .delivery-status {
+            background: linear-gradient(135deg, rgba(13, 110, 253, 0.05), rgba(61, 139, 253, 0.05));
+            border-left: 4px solid var(--primary);
+            padding: 1rem;
+            border-radius: 0.5rem;
+            margin-bottom: 1rem;
+        }
+        
+        .order-summary-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid var(--gray-light);
+            font-size: 0.85rem;
+        }
+        
+        .order-summary-item:last-child {
+            border-bottom: none;
+            font-weight: 600;
+            color: var(--primary);
+        }
+        
+        .promo-code {
+            background: linear-gradient(135deg, rgba(13, 110, 253, 0.1), rgba(61, 139, 253, 0.1));
+            padding: 0.5rem 0.75rem;
+            border-radius: 0.5rem;
+            font-weight: 600;
+            color: var(--primary);
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            animation: pulse 2s infinite;
+            font-size: 0.85rem;
+        }
+        
+        .bonus-card {
+            border-top: 3px solid var(--primary);
+            margin-bottom: 1rem;
+        }
+        
+        .bonus-icon {
+            width: 36px;
+            height: 36px;
+            background: linear-gradient(135deg, rgba(13, 110, 253, 0.1), rgba(61, 139, 253, 0.1));
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--primary);
+            font-size: 1rem;
+            margin-right: 0.75rem;
+        }
+        
+        .bonus-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 0.5rem;
+        }
+        
+        .tag {
+            display: inline-block;
+            padding: 0.3rem 0.6rem;
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 2rem;
+            font-size: 0.75rem;
+            color: white;
+            text-decoration: none;
+            transition: all 0.2s;
+            margin-bottom: 0.3rem;
+            margin-right: 0.3rem;
+        }
+        
+        .tag:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: translateY(-1px);
+        }
+        
+        .vibrant-card {
+            background: var(--vibrant-gradient);
+            color: white;
+            border-radius: 0.75rem;
+            overflow: hidden;
+            margin-top: 1rem;
+        }
+        
+        .ad-section-div-div {
+            padding: 1rem;
+        }
+        
+        .product-card {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+        
+        .square-image-container {
+            width: 100%;
+            aspect-ratio: 1/1;
+            overflow: hidden;
+            border-radius: 0.4rem;
+            margin-bottom: 0.5rem;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .product-image {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: transform 0.3s ease;
+        }
+        
+        .product-card:hover .product-image {
+            transform: scale(1.05);
+        }
+        
+        .product-title {
+            font-size: 0.95rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+        
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+        
+        @keyframes confettiFall {
+            0% { transform: translateY(-100px) rotate(0deg); opacity: 1; }
+            100% { transform: translateY(100vh) rotate(360deg); opacity: 0; }
+        }
+        
+        .confetti {
+            position: fixed;
+            width: 6px;
+            height: 6px;
+            background-color: var(--primary);
+            border-radius: 50%;
+            opacity: 0.8;
+            z-index: 1000;
+            animation: confettiFall 3s linear forwards;
+        }
+        
+        .btn-light {
+            background: rgba(255, 255, 255, 0.9);
+            color: #4361ee;
+            font-weight: 500;
+            font-size: 0.85rem;
+            padding: 0.4rem 0.8rem;
+        }
+        
+        .btn-light:hover {
+            background: white;
+            color: #3a0ca3;
+        }
+
+        h1, .h1 { font-size: 1.5rem; }
+        h2, .h2 { font-size: 1.3rem; }
+        h3, .h3 { font-size: 1.1rem; }
+        h4, .h4 { font-size: 1rem; }
+        h5, .h5 { font-size: 0.95rem; }
+        h6, .h6 { font-size: 0.85rem; }
+        
+        .small-text {
+            font-size: 0.8rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container py-3">
+        <!-- Header -->
+        <div class="confirmation-header">
+            <div class="d-flex align-items-center gap-3">
+                <div class="confirmation-icon">
+                    <i class="fas fa-check"></i>
+                </div>
+                <div>
+                    <h1 class="h2 mb-1">Your eSIM is on the way!</h1>
+                    <p class="mb-0 opacity-75 small-text">Order #ESIM-2023-05642 • Completed</p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Delivery Status -->
+        <div class="card">
+            <div class="delivery-status">
+                <div class="d-flex gap-2 align-items-start">
+                    <div class="text-primary">
+                        <i class="fas fa-paper-plane"></i>
+                    </div>
+                    <div>
+                        <h3 class="h5 mb-1">Your eSIM is being delivered</h3>
+                        <p class="mb-1 small-text">We've sent your eSIM to your email address. Please check your inbox (and spam folder) within the next 30 minutes.</p>
+                        <p class="mb-0 small-text">If you don't receive it, contact us immediately on <a href="https://t.me/yourtelegram" class="fw-bold"><i class="fab fa-telegram"></i> Telegram</a> for assistance.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Main Content Area -->
+        <div class="row g-2">
+            <!-- Order Summary -->
+            <div class="col-lg-8">
+                <div class="card">
+                    <div class="card-header">
+                        <h2 class="h5 mb-0">Order Summary</h2>
+                    </div>
+                    <div class="card-body">
+                        <div class="order-summary-item">
+                            <span class="text-muted">Order Number</span>
+                            <span>ESIM-2023-05642</span>
+                        </div>
+                        <div class="order-summary-item">
+                            <span class="text-muted">Purchase Date</span>
+                            <span>October 15, 2023 at 14:30</span>
+                        </div>
+                        <div class="order-summary-item">
+                            <span class="text-muted">eSIM Destination</span>
+                            <span>Europe (30 countries coverage)</span>
+                        </div>
+                        <div class="order-summary-item">
+                            <span class="text-muted">Data Package</span>
+                            <span>10GB (30 days validity)</span>
+                        </div>
+                        <div class="order-summary-item">
+                            <span class="text-muted">Activation Code</span>
+                            <span>Will be sent via email</span>
+                        </div>
+                        <div class="order-summary-item">
+                            <span class="text-muted">Payment Method</span>
+                            <span>Visa •••• 4242</span>
+                        </div>
+                        <div class="order-summary-item">
+                            <span>Total Amount</span>
+                            <span>$24.99 USD</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Right Side Cards -->
+            <div class="col-lg-4">
+                <!-- Discount Card -->
+                <div class="card bonus-card">
+                    <div class="card-body">
+                        <div class="bonus-header">
+                            <div class="bonus-icon">
+                                <i class="fas fa-tag"></i>
+                            </div>
+                            <h3 class="h5 mb-0">Discount for Your Next Purchase</h3>
+                        </div>
+                        <p class="text-muted mb-2 small-text">Use this promo code for 15% off your next eSIM order:</p>
+                        <div class="promo-code mb-2">
+                            <i class="fas fa-tag"></i>
+                            <span>ESIM15OFF</span>
+                        </div>
+                        {% comment %} <p class="small text-muted mb-0">Valid for 30 days. Share with friends!</p> {% endcomment %}
+                    </div>
+                </div>
+                
+                <!-- Travel Guides Card -->
+                <div class="card bonus-card">
+                    <div class="card-body">
+                        <div class="bonus-header">
+                            <div class="bonus-icon">
+                                <i class="fas fa-gift"></i>
+                            </div>
+                            <h3 class="h5 mb-0">Free Travel Guides Collection</h3>
+                        </div>
+                        <p class="text-muted mb-2 small-text">Access our premium travel guides for your destination.</p>
+                        <a href="https://www.dropbox.com/yourlink" class="btn btn-primary btn-sm d-block">
+                            <i class="fas fa-download me-1"></i> Download Guides
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Advertising Card -->
+        <div class="vibrant-card p-2 mt-2">
+            <div class="row g-0">
+                <div class="col-md-8 p-2">
+                    <h2 class="h4 text-white mb-1">Explore More eSIMs</h2>
+                    <p class="text-white-50 mb-1 small-text">Our most popular destinations:</p>
+                    <div>
+                        <a href="#" class="tag">Japan 5GB</a>
+                        <a href="#" class="tag">USA Unlimited</a>
+                        <a href="#" class="tag">Thailand 8GB</a>
+                        <a href="#" class="tag">Europe 15GB</a>
+                        <a href="#" class="tag">Australia 3GB</a>
+                        <a href="#" class="tag">Global 20GB</a>
+                        <a href="#" class="tag">Middle East 10GB</a>
+                        <a href="#" class="tag">South America 5GB</a>
+                    </div>
+                </div>
+                <div class="col-md-4 p-2">
+                    <div class="product-card">
+                        <div class="square-image-container">
+                            <img src="{% static 'assets/images/travel_image.png' %}" alt="Tripster Experiences" class="product-image">
+                        </div>
+                        <h3 class="product-title text-white">Enhance Your Travel Experience</h3>
+                        <a href="https://experience.tripster.ru/ref=yourreferral" class="btn btn-light btn-sm">
+                            <i class="fas fa-external-link-alt me-1"></i> Explore Tripster
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS Bundle with Popper -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const colors = ['#0d6efd', '#3d8bfd', '#6ea8fe', '#9ec5fe'];
+            
+            for (let i = 0; i < 20; i++) {
+                const confetti = document.createElement('div');
+                confetti.className = 'confetti';
+                confetti.style.left = Math.random() * 100 + 'vw';
+                confetti.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+                confetti.style.animationDuration = Math.random() * 3 + 2 + 's';
+                document.body.appendChild(confetti);
+            }
+        });
+    </script>
+</body>
+</html>

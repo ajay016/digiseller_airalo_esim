@@ -33,7 +33,7 @@ import time
 import json
 import re
 from esim.models import *
-from airalo.tasks.airalo_tasks import purchase_airalo_sim
+from airalo.tasks.airalo_tasks import purchase_airalo_sim, fetch_completed_orders
 
 
 
@@ -498,7 +498,6 @@ def digiseller_deliver(request):
             unique_code=code,
             defaults={"status": "pending"}
         )
-        print('--------------Digiseller failed order has been created------------', failed_order)
 
     try:
         digiseller_order = verify_unique_code_and_get_info(code)
@@ -551,8 +550,6 @@ def verify_unique_code_and_get_info(code: str) -> Dict:
     resp.raise_for_status()
 
     data = resp.json()
-    print("Digiseller API response from unique code:", data)  # Debug print
-    print('data: ', data)
 
     inv = data.get("inv")
     id_goods = data.get("id_goods")
@@ -634,7 +631,6 @@ def handle_digiseller_webhook(data: Dict, code) -> None:
 
     token    = get_digiseller_token()
     content  = get_purchase_info(order_id, token)
-    print('content after webhook: ', content)
     validate_product(content, product_id, order_id)
 
     product      = product_qs.get()
@@ -693,8 +689,7 @@ def persist_and_queue(product, variant, airalo_pkg, buyer_info, quantity, conten
         variant=variant,
         airalo_package=airalo_pkg,
         quantity=quantity,
-        # buyer_email=buyer_info.get("email"),
-        buyer_email="ajayghosh28@gmail.com",
+        buyer_email=buyer_info.get("email"),
         buyer_ip=buyer_info.get("ip_address"),
         buyer_payment_method=buyer_info.get("payment_method"),
         purchase_amount=content.get("amount"),
@@ -707,9 +702,15 @@ def persist_and_queue(product, variant, airalo_pkg, buyer_info, quantity, conten
         unique_code=code
     )
     
-    purchase_airalo_sim.delay(digiseller_order.id)
+    # purchase_airalo_sim.delay(digiseller_order.id)
+    fetch_completed_orders()
     
     DigisellerFailedOrder.objects.filter(unique_code=code).delete()
+    
+    if DigisellerFailedOrder.objects.all().exists():
+        print('digiseller failed order exists')
+        from digiseller.tasks.task import retry_all_failed_orders
+        retry_all_failed_orders.delay()
     
     return digiseller_order
     

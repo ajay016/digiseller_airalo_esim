@@ -296,7 +296,7 @@ class AiraloOrder(models.Model):
     package_id      = models.CharField(max_length=128)
     quantity        = models.PositiveIntegerField()
     type            = models.CharField(max_length=16)
-    description     = models.CharField(max_length=255)
+    description     = models.CharField(max_length=1500)
     esim_type       = models.CharField(max_length=32, blank=True, null=True)
     validity        = models.PositiveIntegerField(blank=True, null=True)
     package_title   = models.CharField(max_length=128)
@@ -417,6 +417,7 @@ class DigisellerOrder(models.Model):
 class DigisellerFailedOrder(models.Model):
     unique_code = models.CharField(max_length=255, unique=True)
     status = models.CharField(max_length=100, default="pending")  # e.g., 'pending', 'success', 'error'
+    retry_count   = models.PositiveIntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
@@ -427,5 +428,8 @@ class DigisellerQueue(models.Model):
     unique_code = models.CharField(max_length=255, unique=True)
     created_at = models.DateTimeField(auto_now_add=True)
     status = models.CharField(max_length=50, default="pending")  # Optional: 'pending', 'processing', 'done', 'error'
+    
+    
+
     
     

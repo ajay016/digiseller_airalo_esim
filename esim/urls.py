@@ -17,4 +17,6 @@ urlpatterns = [
     path('api/monthly-order-totals/', views.monthly_order_totals, name='monthly_order_totals'),
     
     path('digiseller-deliver/', views.digiseller_deliver, name='digiseller_deliver'),
+    
+    path('order-sample/', views.order_sample, name='order_sample'),
 ]

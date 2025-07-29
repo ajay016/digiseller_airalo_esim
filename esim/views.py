@@ -55,7 +55,6 @@ def dashboard(request):
         'failed_orders_per_month': json.dumps(monthly_stats["failed_orders_per_month"]),
         'recent_orders': recent_orders,
     }
-    print("recent_orders:", recent_orders)
     return render(request, 'index.html', context)
 
 
@@ -275,3 +274,8 @@ def digiseller_deliver(request):
 
     # Continue with your logic...
     return render(request, 'digiseller/digiseller_deliver.html', {'code': code})
+
+
+
+def order_sample(request):
+    return render(request, 'order/order_sample.html', )

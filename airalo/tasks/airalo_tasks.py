@@ -1,6 +1,8 @@
 from esim.models import DigisellerOrder, AiraloOrder, AiraloSim
 from celery import shared_task
 from airalo.views import get_airalo_token
+from requests.exceptions import RequestException, Timeout
+import time
 from django.utils import timezone
 from django.conf import settings
 import requests
@@ -11,11 +13,11 @@ import json
 
 
 
-AIRALO_BASE_API_URL = "https://sandbox-partners-api.airalo.com"
-# AIRALO_BASE_API_URL = "https://partners-api.airalo.com"
+
+AIRALO_BASE_API_URL = "https://partners-api.airalo.com"
 
 
-@shared_task(bind=True, max_retries=3, default_retry_delay=60)
+@shared_task(bind=True, max_retries=5, default_retry_delay=60)
 def purchase_airalo_sim(self, digiseller_order_id):
     try:
         order = DigisellerOrder.objects.select_related("airalo_package").get(pk=digiseller_order_id)
@@ -31,12 +33,11 @@ def purchase_airalo_sim(self, digiseller_order_id):
         "type":         "sim",
         "description":  f"{order.quantity} {order.airalo_package.package_id}",
         "brand_settings_name": "",
-        
         "to_email": order.buyer_email,
         "sharing_option[]": "link",
         "copy_address[]": order.buyer_email
     }
-    
+
     api_token = get_airalo_token()
     headers = {
         "Authorization": f"Bearer {api_token}",
@@ -47,22 +48,42 @@ def purchase_airalo_sim(self, digiseller_order_id):
         r = requests.post(
             f"{AIRALO_BASE_API_URL}/v2/orders",
             headers=headers,
-            data=payload,                # Airalo expects multipart/form-data
-            timeout=15,
+            data=payload,
+            timeout=30,
         )
+        # If successful POST
+        r.raise_for_status()
+        data = r.json()["data"]
+
+    except Timeout as exc:
+        print("❌ POST request timed out. Checking for completed orders...")
+
+        completed_orders = fetch_completed_orders(order.order_id)
+        matched_order = None
+        for item in completed_orders:
+            if item["description"] == payload["description"]:
+                matched_order = item
+                break
+
+        if matched_order:
+            print("✅ Matched completed order. Fetching full order data...")
+            try:
+                data = fetch_airalo_order_detail(matched_order["id"])
+            except Exception as fetch_err:
+                print("❌ Failed to fetch full order data:", fetch_err)
+                raise self.retry(exc=fetch_err)
+        else:
+            print("❌ No matching completed order found. Retrying POST...")
+            order.status = "failed"
+            order.error_message = str(exc)
+            order.save(update_fields=["status", "error_message"])
+            raise self.retry(exc=exc)
+
     except Exception as exc:
         order.status = "failed"
         order.error_message = str(exc)
         order.save(update_fields=["status", "error_message"])
         raise self.retry(exc=exc)
-
-    if r.status_code != 200:
-        order.status = "failed"
-        order.error_message = f"HTTP {r.status_code}: {r.text}"
-        order.save(update_fields=["status", "error_message"])
-        return
-
-    data = r.json()["data"]
 
     # ---------- Persist AiraloOrder ----------
     airalo_order = AiraloOrder.objects.create(
@@ -86,7 +107,6 @@ def purchase_airalo_sim(self, digiseller_order_id):
         raw_payload         = data,
     )
 
-    # ---------- Persist SIMs ----------
     for sim in data.get("sims", []):
         AiraloSim.objects.create(
             airalo_order = airalo_order,
@@ -102,22 +122,19 @@ def purchase_airalo_sim(self, digiseller_order_id):
             raw_payload  = sim,
         )
 
-    # ---------- Link back & finish ----------
     order.airalo_order = airalo_order
     order.status       = "completed"
     order.save(update_fields=["airalo_order", "status"])
 
-    # For debugging now:
     print("✅ Airalo order created:", airalo_order.code)
     for sim in airalo_order.sims.all():
         print("   ▶ ICCID:", sim.iccid)
-        
+
     try:
         deliver_unique_code(order.unique_code)
     except Exception as exc:
         print(f"❌ Failed to call Digiseller deliver endpoint: {exc}")
     else:
-        # deliver_response already printed inside helper
         order.digiseller_transaction_status = 2
         order.save(update_fields=["digiseller_transaction_status"])
         print("✅ Digiseller deliver endpoint completed.")
@@ -146,3 +163,76 @@ def deliver_unique_code(code: str):
         payload = {"text": resp.text}
     resp.raise_for_status()
     return payload
+
+
+
+def fetch_completed_orders(description: str) -> list:
+    api_token = get_airalo_token()
+    url = f"{AIRALO_BASE_API_URL}/v2/orders"
+    headers = {
+        "Authorization": f"Bearer {api_token}",
+        "Accept": "application/json"
+    }
+    params = {
+        "limit": 20,
+        "page": 1,
+        "filter[description]": description,
+        "filter[order_status]": "completed",
+        "include": "status"
+    }
+
+    max_retries = 5
+    timeout_seconds = 20
+
+    for attempt in range(1, max_retries + 1):
+        try:
+            response = requests.get(url, headers=headers, params=params, timeout=timeout_seconds)
+            response.raise_for_status()
+            data = response.json()
+
+            completed_orders = []
+            for order in data.get("data", []):
+                if order.get("status", {}).get("slug") == "completed":
+                    print('order status from Airalo: ', order.get("status", {}).get("slug"))
+                    completed_orders.append(order)
+
+            return completed_orders  # list of completed orders (can be empty)
+
+        except Timeout:
+            print(f"Timeout occurred on attempt {attempt}/{max_retries}. Retrying...")
+        except RequestException as e:
+            print(f"Request failed on attempt {attempt}/{max_retries}: {e}")
+        time.sleep(1)
+
+    print("Failed to fetch orders after 5 retries.")
+    return []
+
+
+def fetch_airalo_order_detail(order_id: int) -> dict:
+    api_token = get_airalo_token()
+    url = f"{AIRALO_BASE_API_URL}/v2/orders/{order_id}"
+    headers = {
+        "Authorization": f"Bearer {api_token}",
+        "Accept": "application/json"
+    }
+
+    max_retries = 5
+    timeout_seconds = 20
+    retry_delay = 1  # seconds between attempts
+
+    for attempt in range(1, max_retries + 1):
+        try:
+            response = requests.get(url, headers=headers, timeout=timeout_seconds)
+            response.raise_for_status()
+            return response.json()["data"]
+
+        except Timeout as exc:
+            print(f"⚠️ Timeout on attempt {attempt}/{max_retries} for order {order_id}.")
+        except RequestException as exc:
+            print(f"⚠️ Request failed on attempt {attempt}/{max_retries} for order {order_id}: {exc}")
+
+        if attempt < max_retries:
+            time.sleep(retry_delay)
+        else:
+            # Last attempt failed
+            raise
