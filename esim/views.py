@@ -25,6 +25,7 @@ from django.template.loader import render_to_string
 from esim.utils import digiseller_stats as ds
 from django.db.models.functions import TruncMonth
 from esim.utils import airalo_stats as airalo_stats
+from django.db import transaction
 from django.conf import settings
 import requests
 import hashlib
@@ -279,3 +280,516 @@ def digiseller_deliver(request):
 
 def order_sample(request):
     return render(request, 'order/order_sample.html', )
+
+    
+    
+def social_media_links(request):
+    if request.method == 'POST':
+        data = json.loads(request.body.decode('utf-8'))
+        action = data.get('action')
+
+        if action == 'add':
+            title = data.get('title')
+            description = data.get('description')
+            is_active = data.get('is_active', False)
+            telegram = data.get('telegram_link')
+            facebook = data.get('facebook_link')
+            instagram = data.get('instagram_link')
+            youtube = data.get('youtube_link')
+
+            if not title or not telegram:
+                return JsonResponse({'status': 'error', 'message': 'Title and Telegram link are required.'})
+
+            SocialMediaAd.objects.create(
+                title=title,
+                description=description,
+                is_active=bool(is_active),
+                telegram_link=telegram,
+                facebook_link=facebook,
+                instagram_link=instagram,
+                youtube_link=youtube
+            )
+            return JsonResponse({'status': 'success', 'message': 'Ad added successfully.'})
+
+        elif action == 'edit':
+            ad_id = data.get('id')
+            title = data.get('title')
+            description = data.get('description')
+            is_active = data.get('is_active')
+            telegram = data.get('telegram_link')
+            facebook = data.get('facebook_link')
+            instagram = data.get('instagram_link')
+            youtube = data.get('youtube_link')
+
+            if not ad_id or not title or not telegram:
+                return JsonResponse({'status': 'error', 'message': 'Title and Telegram link are required.'})
+
+            try:
+                ad = SocialMediaAd.objects.get(id=ad_id)
+                ad.title = title
+                ad.description = description
+                ad.is_active = is_active == "true"
+                ad.telegram_link = telegram
+                ad.facebook_link = facebook
+                ad.instagram_link = instagram
+                ad.youtube_link = youtube
+                ad.save()
+                return JsonResponse({'status': 'success', 'message': 'Ad updated successfully.'})
+            except SocialMediaAd.DoesNotExist:
+                return JsonResponse({'status': 'error', 'message': 'Ad not found.'})
+
+        elif action == 'delete':
+            ad_id = data.get('id')
+            try:
+                SocialMediaAd.objects.get(id=ad_id).delete()
+                return JsonResponse({'status': 'success', 'message': 'Ad deleted successfully.'})
+            except SocialMediaAd.DoesNotExist:
+                return JsonResponse({'status': 'error', 'message': 'Ad not found.'})
+
+    else:
+        ads = SocialMediaAd.objects.all()
+        return render(request, 'advertisements/social_media_links.html', {'social_ads': ads})
+    
+    
+
+def product_ad(request):
+    ads = SelectedProductAd.objects.all()
+    products = DigisellerProduct.objects.all()
+    
+    context = {
+        'selected_product_ads': ads,
+        'products': products,
+    }
+    
+    return render(request, 'advertisements/product_ad.html', context)
+
+
+def get_product_items(request, ad_id):
+    items = ProductAdItem.objects.filter(advertisement_id=ad_id).select_related('product')
+    
+    data = []
+    for item in items:
+        data.append({
+            "id": item.id,
+            "product_id": item.product.id if item.product else None,
+            "product_name": item.product.name_goods if item.product else "",
+            "display_name": item.display_name or (item.product.name_goods if item.product else ""),
+            "product_url": item.product_url or "",
+        })
+    
+    return JsonResponse({"items": data})
+
+    
+@require_POST
+def add_selected_product_ad(request):
+    try:
+        # Start an atomic transaction so we don't create a half-finished ad
+        with transaction.atomic():
+            # 1. Basic ad fields
+            title = request.POST.get('title', '').strip()
+            if not title:
+                return JsonResponse({'status': 'error', 'message': 'Title is required.'})
+            description = request.POST.get('description', '').strip()
+            # Note: unchecked checkboxes don’t appear in POST
+            is_active = request.POST.get('is_active') == 'on'
+
+            ad = SelectedProductAd.objects.create(
+                title=title,
+                description=description,
+                is_active=is_active
+            )
+
+            # 2. Loop through each product row
+            products       = request.POST.getlist('products[]')
+            display_names  = request.POST.getlist('display_names[]')
+            product_urls   = request.POST.getlist('product_urls[]')
+
+            for prod_id, disp_name, url in zip(products, display_names, product_urls):
+                # skip entirely blank rows
+                if not prod_id and not disp_name.strip() and not url.strip():
+                    continue
+
+                # try to fetch the linked product, if any
+                product = None
+                if prod_id:
+                    try:
+                        product = DigisellerProduct.objects.get(pk=prod_id)
+                    except DigisellerProduct.DoesNotExist:
+                        # you could return an error here instead if you prefer
+                        product = None
+
+                ProductAdItem.objects.create(
+                    advertisement=ad,
+                    product=product,
+                    display_name=disp_name.strip() or None,
+                    product_url=url.strip() or None
+                )
+
+        return JsonResponse({
+            'status': 'success',
+            'message': 'Advertisement created successfully.'
+        })
+
+    except Exception as e:
+        # Log e if you want, then surface a friendly error
+        return JsonResponse({
+            'status': 'error',
+            'message': f'An unexpected error occurred: {e}'
+        })
+        
+        
+def edit_selected_product_ad(request):
+    if request.method != "POST":
+        return JsonResponse({"status": "error", "message": "Invalid request method."}, status=405)
+
+    try:
+        data = json.loads(request.body)
+
+        ad_id = data.get("id")
+        title = data.get("title", "").strip()
+        description = data.get("description", "").strip()
+        is_active = data.get("is_active", False)
+        products = data.get("products", [])
+        
+        if not title:
+            return JsonResponse({"status": "error", "message": "Title is required."}, status=400)
+
+        ad = SelectedProductAd.objects.get(id=ad_id)
+        ad.title = title
+        ad.description = description
+        ad.is_active = is_active
+        ad.save()
+
+        existing_items = ProductAdItem.objects.filter(advertisement=ad)
+        existing_item_ids = set(existing_items.values_list("id", flat=True))
+        processed_item_ids = set()
+
+        for prod_data in products:
+            item_id = prod_data.get("id")
+            product_id = prod_data.get("product_id")
+            display_name = prod_data.get("display_name", "").strip()
+            product_url = prod_data.get("product_url", "").strip()
+
+            # Skip empty rows (no product_id and no display_name)
+            if not product_id and not display_name:
+                continue
+
+            if item_id:
+                # Update existing item
+                try:
+                    item = ProductAdItem.objects.get(id=item_id, advertisement=ad)
+                except ProductAdItem.DoesNotExist:
+                    continue  # silently skip if item not found
+            else:
+                item = ProductAdItem(advertisement=ad)
+
+            item.display_name = display_name
+            item.product_url = product_url
+            item.product = DigisellerProduct.objects.filter(id=product_id).first() if product_id else None
+            item.save()
+            processed_item_ids.add(item.id)
+
+        # Remove deleted product rows
+        items_to_delete = existing_items.exclude(id__in=processed_item_ids)
+        items_to_delete.delete()
+
+        return JsonResponse({"status": "success", "message": "Product advertisement updated successfully."})
+
+    except SelectedProductAd.DoesNotExist:
+        return JsonResponse({"status": "error", "message": "Advertisement not found."}, status=404)
+    except Exception as e:
+        return JsonResponse({"status": "error", "message": f"Unexpected error: {str(e)}"}, status=500)
+    
+    
+@require_POST
+def delete_product_ad(request): 
+    data = json.loads(request.body)
+    ad_id = data.get("id")
+
+    try:
+        ad = SelectedProductAd.objects.get(id=ad_id)
+        ad.delete()
+        return JsonResponse({"status": "success", "message": "Product ad deleted successfully."})
+    except SelectedProductAd.DoesNotExist:
+        return JsonResponse({"status": "error", "message": "Product ad not found."})
+    
+    
+def purchase_discount(request):
+    purchase_discount_ads = PurchaseDiscountAd.objects.all()
+    
+    context = {
+        "purchase_discount_ads": purchase_discount_ads
+    }
+    
+    return render(request, 'advertisements/purchase_discount.html', context)
+
+
+def add_purchase_discount(request):
+    if request.method == "POST":
+        title = request.POST.get("title", "").strip()
+        discount_text = request.POST.get("discount_text", "").strip()
+        discount_code = request.POST.get("discount_code", "").strip()
+        is_active = request.POST.get("is_active") == "on"
+
+        if not title or not discount_code or not discount_text:
+            return JsonResponse({
+                "status": "error",
+                "message": "Title, Discount Code and Discount Text are required."
+            })
+
+        try:
+            PurchaseDiscountAd.objects.create(
+                title=title,
+                discount_text=discount_text,
+                discount_code=discount_code,
+                is_active=is_active
+            )
+            return JsonResponse({
+                "status": "success",
+                "message": "Purchase discount ad added successfully."
+            })
+        except Exception as e:
+            return JsonResponse({
+                "status": "error",
+                "message": f"Failed to add discount ad. Error: {str(e)}"
+            })
+
+    return JsonResponse({"status": "error", "message": "Invalid request method."})
+
+
+def edit_purchase_discount_ad(request):
+    if request.method == "POST":
+        ad_id = request.POST.get("edit_id")
+        title = request.POST.get("edit_name")
+        discount_code = request.POST.get("edit_code")
+        discount_text = request.POST.get("edit_text")
+        is_active_str = request.POST.get("edit_active")  # "True" or "False" string
+
+        is_active = is_active_str == "True"
+
+        try:
+            ad = PurchaseDiscountAd.objects.get(id=ad_id)
+        except PurchaseDiscountAd.DoesNotExist:
+            return JsonResponse({"status": "error", "message": "Advertisement not found."})
+
+        # Update fields
+        ad.title = title
+        ad.discount_code = discount_code
+        ad.discount_text = discount_text
+        ad.is_active = is_active
+        ad.save()
+
+        return JsonResponse({"status": "success", "message": "Advertisement updated successfully."})
+    else:
+        return JsonResponse({"status": "error", "message": "Invalid request method."})
+    
+    
+@require_POST
+def delete_purchase_discount_ad(request): 
+    data = json.loads(request.body)
+    ad_id = data.get("id")
+
+    try:
+        ad = PurchaseDiscountAd.objects.get(id=ad_id)
+        ad.delete()
+        return JsonResponse({"status": "success", "message": "Product ad deleted successfully."})
+    except SelectedProductAd.DoesNotExist:
+        return JsonResponse({"status": "error", "message": "Product ad not found."})
+    
+    
+
+def travel_guide_ad(request):
+    ads = TravelGuideAd.objects.all().order_by('-id')
+    
+    context = {
+        "travel_guide_ads": ads
+    }
+    
+    return render(request, 'advertisements/travel_guide_ad.html', context)
+
+
+def add_travel_guide_ad(request):
+    if request.method == "POST":
+        title = request.POST.get("title", "").strip()
+        description = request.POST.get("description", "").strip()
+        external_link = request.POST.get("external_link", "").strip()
+        is_active = request.POST.get("is_active") == "on"
+
+        if not title:
+            return JsonResponse({"status": "error", "message": "Title is required."})
+        if not external_link:
+            return JsonResponse({"status": "error", "message": "External link is required."})
+
+        ad = TravelGuideAd.objects.create(
+            title=title,
+            description=description,
+            external_link=external_link,
+            is_active=is_active,
+        )
+
+        return JsonResponse({"status": "success", "message": "Travel Guide Ad added successfully."})
+
+    return JsonResponse({"status": "error", "message": "Invalid request method."})
+
+
+def edit_travel_guide_ads(request):
+    if request.method == "POST":
+        action = request.POST.get("action")
+
+        if action == "edit":
+            ad_id = request.POST.get("id")
+            try:
+                ad = TravelGuideAd.objects.get(pk=ad_id)
+            except TravelGuideAd.DoesNotExist:
+                return JsonResponse({"status": "error", "message": "Ad not found."})
+
+            ad.title = request.POST.get("title", "").strip()
+            ad.description = request.POST.get("description", "").strip()
+            ad.external_link = request.POST.get("external_link", "").strip()
+            ad.is_active = request.POST.get("is_active") == "true"
+            ad.save()
+
+            return JsonResponse({"status": "success", "message": "Ad updated successfully."})
+
+        return JsonResponse({"status": "error", "message": "Invalid action."})
+
+    # GET request
+    travel_guide_ads = TravelGuideAd.objects.all()
+    return render(request, "your_template_name.html", {
+        "travel_guide_ads": travel_guide_ads
+    })
+    
+
+@require_POST
+def delete_purchase_discount_ad(request): 
+    data = json.loads(request.body)
+    ad_id = data.get("id")
+
+    try:
+        ad = TravelGuideAd.objects.get(id=ad_id)
+        ad.delete()
+        return JsonResponse({"status": "success", "message": "Product ad deleted successfully."})
+    except SelectedProductAd.DoesNotExist:
+        return JsonResponse({"status": "error", "message": "Product ad not found."})
+    
+
+def sponsor_ads(request):
+    sponsor_ads = SponsorAd.objects.all().order_by("-id")
+    
+    context = {
+        "sponsor_ads": sponsor_ads
+    }
+    
+    return render(request, "advertisements/sponsor_ads.html", context)
+
+
+@require_POST
+def add_sponsor_ad(request):
+    if request.method == "POST":
+        title = request.POST.get("title", '')
+        button_label = request.POST.get("button_label", '')
+        url = request.POST.get("ad_url")
+        is_active = request.POST.get("is_active") == "on"
+        image = request.FILES.get("image")
+
+        # Validation
+        if not title or not button_label or not image or not url:
+            return JsonResponse({
+                "status": "error",
+                "message": "Title, Button Label, and Image are required."
+            })
+
+        try:
+            SponsorAd.objects.create(
+                title=title,
+                button_label=button_label,
+                url=url,
+                is_active=is_active,
+                image=image
+            )
+            return JsonResponse({
+                "status": "success",
+                "message": "Sponsor Ad added successfully."
+            })
+        except Exception as e:
+            return JsonResponse({
+                "status": "error",
+                "message": f"Failed to save Sponsor Ad: {str(e)}"
+            })
+
+
+@require_POST
+def edit_sponsor_ad(request):
+    try:
+        ad_id = request.POST.get("edit_add_id")
+        title = request.POST.get("edit_title", "").strip()
+        button_label = request.POST.get("edit_button_label", "").strip()
+        url = request.POST.get("edit_ad_url", "").strip()
+        is_active = request.POST.get("edit_active") == "True"
+        image = request.FILES.get("edit_ad_image")
+
+        errors = []
+
+        # Validation
+        if not ad_id:
+            errors.append("Missing Ad ID.")
+            
+        if not url or url == 'None' or url == None:
+            errors.append("Missing URL.")
+
+        if not title:
+            errors.append("Title is required.")
+        elif len(title) > 255:
+            errors.append("Title must not exceed 255 characters.")
+
+        if not button_label:
+            errors.append("Button label is required.")
+        elif len(button_label) > 40:
+            errors.append("Button label must not exceed 40 characters.")
+
+        if url and len(url) > 2000:
+            errors.append("URL is too long.")
+
+        if errors:
+            return JsonResponse({
+                "status": "error",
+                "message": " ".join(errors)
+            })
+
+        ad = get_object_or_404(SponsorAd, id=ad_id)
+
+        # Update fields
+        ad.title = title
+        ad.button_label = button_label
+        ad.url = url if url else None
+        ad.is_active = is_active
+
+        if image:
+            ad.image.delete(save=False)  # Delete old image
+            ad.image = image
+
+        ad.save()
+
+        return JsonResponse({
+            "status": "success",
+            "message": "Sponsor Ad updated successfully."
+        })
+
+    except Exception as e:
+        return JsonResponse({
+            "status": "error",
+            "message": f"Error while updating: {str(e)}"
+        })
+            
+            
+@require_POST
+def delete_sponsor_ad(request): 
+    data = json.loads(request.body)
+    ad_id = data.get("id")
+
+    try:
+        ad = SponsorAd.objects.get(id=ad_id)
+        ad.delete()
+        return JsonResponse({"status": "success", "message": "Product ad deleted successfully."})
+    except SelectedProductAd.DoesNotExist:
+        return JsonResponse({"status": "error", "message": "Product ad not found."})

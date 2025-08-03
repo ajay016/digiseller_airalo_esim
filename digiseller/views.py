@@ -725,3 +725,96 @@ def update_digiseller_order(order_id: int, status: int) -> None:
         print(f"Updated order {order_id} with status {status}")
     except DigisellerOrder.DoesNotExist:
         pass  # Or handle/log error appropriately
+
+
+
+
+
+
+
+
+@require_GET
+def order_sample(request):
+    lang = request.GET.get('lang', 'ru')
+    if lang not in dict(settings.LANGUAGES):
+        lang = 'ru'
+
+    # 2) Activate it
+    translation.activate(lang)
+    request.LANGUAGE_CODE = lang
+    
+    print("DEBUG: GET params =", dict(request.GET))
+    
+    lang = request.GET.get('lang', 'ru')
+    print("DEBUG: requested lang =", lang)
+    
+    code = request.GET.get("uniquecode")
+    print('---------unique code--------', code)
+    if not code:
+        return HttpResponseBadRequest("Missing code")
+    
+    # Save failed order record early
+    if not DigisellerOrder.objects.filter(unique_code=code).exists():
+        failed_order, created = DigisellerFailedOrder.objects.get_or_create(
+            unique_code=code,
+            defaults={"status": "pending"}
+        )
+
+    try:
+        digiseller_order = verify_unique_code_and_get_info(code)
+    except SkipWebhook as exc:
+        DigisellerFailedOrder.objects.filter(unique_code=code).update(status="skipped")
+        return HttpResponse(f"Order ignored: {exc}", status=200)
+    except Exception as exc:
+        DigisellerFailedOrder.objects.filter(unique_code=code).update(status="error")
+        return HttpResponse(f"Server error: {exc}", status=500)
+    
+    variant = digiseller_order.variant
+    package = variant.airalo_package if variant else None
+    
+    # Extract validity from package_id
+    validity = None
+    if package and package.package_id:
+        parts = package.package_id.split("-")
+        for part in parts:
+            if "day" in part.lower():
+                try:
+                    number = int(part.lower().replace("days", "").replace("day", ""))
+                    validity = f"{number} Days"
+                    break
+                except ValueError:
+                    pass
+                
+    # Get last active instances of all ad models
+    purchase_discount_ad = PurchaseDiscountAd.objects.filter(is_active=True).last()
+    travel_guide_ad = TravelGuideAd.objects.filter(is_active=True).last()
+    selected_product_ad = SelectedProductAd.objects.filter(is_active=True).last()
+    social_media_ad = SocialMediaAd.objects.filter(is_active=True).last()
+    sponsor_ad = SponsorAd.objects.filter(is_active=True).last()
+    
+    product_ad_items = selected_product_ad.items.all() if selected_product_ad else []
+
+    context = {
+        'current_lang': lang,
+        'available_langs': settings.LANGUAGES,
+        "order_id": digiseller_order.order_id,
+        "product": digiseller_order.product,
+        "variant": digiseller_order.variant.text,
+        "quantity": digiseller_order.quantity,
+        "purchase_amount": digiseller_order.purchase_amount,
+        "purchase_currency": digiseller_order.purchase_currency,
+        "purchase_date": digiseller_order.purchase_date,
+        "unique_code": digiseller_order.unique_code,
+        "validity": validity,
+        
+        "purchase_discount_ad": purchase_discount_ad,
+        "travel_guide_ad": travel_guide_ad,
+        "selected_product_ad": selected_product_ad,
+        "social_media_ad": social_media_ad,
+        "sponsor_ad": sponsor_ad,
+        'product_ad_items': product_ad_items
+    }
+    
+    print('context on order confirmation page')
+
+    return render(request, "order_confirmation/order_sample.html", context)

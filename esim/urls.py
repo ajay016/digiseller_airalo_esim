@@ -19,4 +19,28 @@ urlpatterns = [
     path('digiseller-deliver/', views.digiseller_deliver, name='digiseller_deliver'),
     
     path('order-sample/', views.order_sample, name='order_sample'),
+    
+    # Advertisements
+    path('social-media-links/', views.social_media_links, name='social_media_links'),
+    
+    path('product-ad/', views.product_ad, name='product_ad'),
+    path('add-selected-product-ad/', views.add_selected_product_ad, name='add_selected_product_ad'),
+    path("get-product-items/<int:ad_id>/", views.get_product_items, name="get_product_items"),
+    path("edit-selected-product-ad/", views.edit_selected_product_ad, name="edit_selected_product_ad"),
+    path("delete-product-ad/", views.delete_product_ad, name="delete_product_ad"),
+    
+    path("purchase-discount/", views.purchase_discount, name="purchase_discount"),
+    path('add-purchase-discount/', views.add_purchase_discount, name='add_purchase_discount'),
+    path('edit-purchase-discount-ad/', views.edit_purchase_discount_ad, name='edit_purchase_discount_ad'),
+    path('delete-purchase-discount-ad/', views.delete_purchase_discount_ad, name='delete_purchase_discount_ad'),
+    
+    path('travel-guide-ad/', views.travel_guide_ad, name='travel_guide_ad'),
+    path('add-travel-guide-ad/', views.add_travel_guide_ad, name='add_travel_guide_ad'),
+    path('edit-travel-guide-ads/', views.edit_travel_guide_ads, name='edit_travel_guide_ads'),
+    path('delete-purchase-discount-ad/', views.delete_purchase_discount_ad, name='delete_purchase_discount_ad'),
+    
+    path('sponsor-ads/', views.sponsor_ads, name='sponsor_ads'),
+    path('add-sponsor-ad/', views.add_sponsor_ad, name='add_sponsor_ad'),
+    path('delete-sponsor-ad/', views.delete_sponsor_ad, name='delete_sponsor_ad'),
+    path("edit-sponsor-ad/", views.edit_sponsor_ad, name="edit_sponsor_ad"),
 ]

@@ -432,4 +432,62 @@ class DigisellerQueue(models.Model):
     
 
     
+class AdvertisementBase(models.Model):
+    title = models.CharField(max_length=255)
+    description = models.TextField(blank=True)
+    is_active = models.BooleanField(default=True)
+    display_order = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        abstract = True
+        ordering = ['display_order']
+        
     
+class PurchaseDiscountAd(AdvertisementBase):
+    discount_text = models.CharField(max_length=255)  # e.g., "Get 10% off on your next purchase!"
+    discount_code = models.CharField(max_length=50, blank=True)
+    
+
+class TravelGuideAd(AdvertisementBase):
+    file = models.FileField(upload_to='travel_guides/', blank=True, null=True)
+    external_link = models.URLField(blank=True, null=True)
+    
+
+class SelectedProductAd(AdvertisementBase):
+    pass
+
+
+class ProductAdItem(models.Model):
+    advertisement = models.ForeignKey(SelectedProductAd, on_delete=models.CASCADE, related_name='items')
+    product = models.ForeignKey('DigisellerProduct', on_delete=models.SET_NULL, null=True, blank=True)
+    display_name = models.CharField(max_length=255, blank=True, null=True)
+    product_url = models.URLField(blank=True, null=True)
+
+    def get_display_name(self):
+        if self.display_name:
+            return self.display_name
+        elif self.product:
+            return self.product.name_goods
+        return ""
+
+    def __str__(self):
+        return self.get_display_name()
+
+    
+
+class SocialMediaAd(AdvertisementBase):
+    telegram_link = models.URLField()
+    facebook_link = models.URLField(blank=True)
+    instagram_link = models.URLField(blank=True)
+    youtube_link = models.URLField(blank=True)
+    
+    
+class SponsorAd(models.Model):
+    title = models.CharField(max_length=255)
+    is_active = models.BooleanField(default=True)
+    url = models.URLField(blank=True, null=True)
+    button_label = models.CharField(max_length=40)
+    image = models.ImageField(upload_to='sponsor_ads/')
+
+    def __str__(self):
+        return self.title

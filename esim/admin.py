@@ -341,3 +341,87 @@ class DigisellerFailedOrderAdmin(admin.ModelAdmin):
             'fields': ('unique_code', 'status', 'retry_count', 'created_at')
         }),
     )
+    
+    
+class ProductAdItemInline(admin.TabularInline):
+    """
+    Inline for managing ProductAdItems within the SelectedProductAd admin.
+    """
+    model = ProductAdItem
+    extra = 1
+    fields = ('product', 'display_name', 'product_url')
+
+
+@admin.register(PurchaseDiscountAd)
+class PurchaseDiscountAdAdmin(admin.ModelAdmin):
+    """
+    Admin interface for PurchaseDiscountAd model.
+    """
+    list_display = ('title', 'discount_text', 'is_active', 'display_order')
+    list_filter = ('is_active',)
+    search_fields = ('title', 'description', 'discount_text')
+    ordering = ('display_order',)
+    fieldsets = (
+        (None, {
+            'fields': ('title', 'description', 'is_active', 'display_order')
+        }),
+        ('Discount Details', {
+            'fields': ('discount_text', 'discount_code')
+        }),
+    )
+
+
+@admin.register(TravelGuideAd)
+class TravelGuideAdAdmin(admin.ModelAdmin):
+    """
+    Admin interface for TravelGuideAd model.
+    """
+    list_display = ('title', 'is_active', 'display_order', 'external_link')
+    list_filter = ('is_active',)
+    search_fields = ('title', 'description')
+    ordering = ('display_order',)
+    fieldsets = (
+        (None, {
+            'fields': ('title', 'description', 'is_active', 'display_order')
+        }),
+        ('Guide Content', {
+            'fields': ('file', 'external_link')
+        }),
+    )
+
+
+@admin.register(SelectedProductAd)
+class SelectedProductAdAdmin(admin.ModelAdmin):
+    """
+    Admin interface for SelectedProductAd model.
+    Includes an inline for managing associated products.
+    """
+    list_display = ('title', 'is_active', 'display_order')
+    list_filter = ('is_active',)
+    search_fields = ('title', 'description')
+    ordering = ('display_order',)
+    inlines = [ProductAdItemInline]
+    fieldsets = (
+        (None, {
+            'fields': ('title', 'description', 'is_active', 'display_order')
+        }),
+    )
+
+
+@admin.register(SocialMediaAd)
+class SocialMediaAdAdmin(admin.ModelAdmin):
+    """
+    Admin interface for SocialMediaAd model.
+    """
+    list_display = ('title', 'is_active', 'display_order', 'telegram_link')
+    list_filter = ('is_active',)
+    search_fields = ('title', 'description', 'telegram_link', 'facebook_link')
+    ordering = ('display_order',)
+    fieldsets = (
+        (None, {
+            'fields': ('title', 'description', 'is_active', 'display_order')
+        }),
+        ('Social Media Links', {
+            'fields': ('telegram_link', 'facebook_link', 'instagram_link', 'youtube_link')
+        }),
+    )

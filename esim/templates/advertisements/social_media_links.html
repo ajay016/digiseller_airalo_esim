@@ -1,0 +1,536 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load sass_tags %}
+
+{% block css %}
+<link rel="stylesheet" type="text/css" href="{% static 'assets/css/vendors/jquery.dataTables.css' %}">
+<link rel="stylesheet" type="text/css" href="{% static 'assets/css/vendors/dataTables.bootstrap5.css' %}">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" integrity="sha512-Evv84Mr4kqVGRNSgIGL/F/aIDqQb7xQ2vcrdIwxfjThSH8CSR7PBEakCr51Ck+w+/U6swU2Im1vVX0SVk9ABhg==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+<style>
+    .custom-large-btn:hover{
+        background-color: #4a3dd9 !important;
+    }
+
+    .custom-delete-btn:hover{
+        background-color: #ff0000 !important;
+    }
+
+    .modal-body{
+        padding-top: 34px !important;
+    }
+
+    .success-message{
+        background-color: #10cf1057;
+        color: #096009;
+    }
+
+    .error-message{
+        background-color: #ff0d0d78 !important;
+        color: #890000;
+    }
+
+    .edit{
+        cursor: pointer;
+    }
+
+    .edit-icon{
+        cursor: pointer;
+        font-size: 22px !important;
+        transition: 0.3s ease-in-out;
+    }
+
+    .edit-icon:hover{
+        transform: scale(1.15);
+    }
+
+    .delete-icon{
+        cursor: pointer;
+        font-size: 22px !important;
+        transition: 0.3s ease-in-out;
+    }
+
+    .delete-icon:hover{
+        transform: scale(1.15);
+    }
+
+    .delete{
+        cursor: pointer;
+    }
+
+    .error-success-div {
+        max-height: 0;
+        opacity: 0;
+        padding: 10px 20px;
+        border-radius: 20px;
+        overflow: hidden;
+        transition: max-height 0.3s ease, opacity 0.3s ease;
+    }
+
+    .error-success-div.show {
+        /* adjust 200px to be comfortably larger than your tallest message */
+        max-height: 200px;
+        opacity: 1;
+    }
+
+    
+</style>
+{% endblock css %}
+
+{% block content %}
+
+<div class="container-fluid datatable-init">
+    <div class="row">
+        <!-- Zero Configuration  Starts-->
+        <div class="col-sm-12">
+            <div class="card">
+                <div class="card-header pb-0 card-no-border">
+                    <div class="row justify-content-center">
+                        <div class="col-md-6">
+                            <h1>List of Social Media Links</h1>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="d-flex justify-content-end">
+                                <button class="btn btn-pill btn-primary btn-lg custom-large-btn" data-bs-toggle="modal" data-bs-target="#addModal">
+                                    <span class="me-6">
+                                        <i class="fa-solid fa-plus"></i>
+                                    </span> Add a New Social Media Link
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                </div>
+                <div class="card-body">
+                        <div class="table-responsive custom-scrollbar">
+                            <table class="display table-striped border" id="basic-1">
+                            <thead>
+                                <tr>
+                                    <th>Title</th>
+                                    <th>Description</th>
+                                    <th>Active</th>
+                                    <th>Telegram</th>
+                                    <th>Facebook</th>
+                                    <th>Instagram</th>
+                                    <th>YouTube</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for ad in social_ads %}
+                                    <tr data-id="{{ ad.id }}">
+                                        <td>{{ ad.title }}</td>
+                                        <td>{{ ad.description|truncatewords:10 }}</td>
+                                        <td>{{ ad.is_active|yesno:"Yes,No" }}</td>
+                                        <td>{{ ad.telegram_link }}</td>
+                                        <td>{{ ad.facebook_link }}</td>
+                                        <td>{{ ad.instagram_link }}</td>
+                                        <td>{{ ad.youtube_link }}</td>
+                                        <td>
+                                            <ul class="action"> 
+                                                <li class="edit">
+                                                    <span class="edit-icon-span">
+                                                        <i class="fa-regular fa-pen-to-square edit-icon"
+                                                        data-bs-toggle="modal"
+                                                        data-bs-target="#editModal"
+                                                        data-id="{{ ad.id }}"
+                                                        data-title="{{ ad.title }}"
+                                                        data-description="{{ ad.description }}"
+                                                        data-is-active="{{ ad.is_active }}"
+                                                        data-telegram="{{ ad.telegram_link }}"
+                                                        data-facebook="{{ ad.facebook_link }}"
+                                                        data-instagram="{{ ad.instagram_link }}"
+                                                        data-youtube="{{ ad.youtube_link }}"
+                                                        ></i>
+                                                    </span>
+                                                </li>
+                                                <li class="delete" data-id="{{ ad.id }}">
+                                                    <span class="delete-icon-span">
+                                                        <i class="fa-solid fa-trash-can delete-icon" data-id="{{ ad.id }}" data-bs-toggle="modal" data-bs-target="#deleteConfirmationModal"></i>
+                                                    </span>
+                                                </li>
+                                            </ul>
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- Zero Configuration  Ends-->
+    </div>
+</div>
+
+<!--Add modal-->
+<div class="modal fade" id="addModal" tabindex="-1" role="dialog" aria-labelledby="addModal" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+        <div class="modal-content">
+            <div class="modal-body">
+                <h1 class="text-center">Add a New Social Media Ad</h1>
+                <div class="modal-toggle-wrapper">
+                    <div class="card">
+                        <form class="form theme-form dark-inputs">
+                            {% csrf_token %}
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col">
+                                        <div class="mb-3">
+                                            <label class="form-label">Ad Title</label>
+                                            <input class="form-control btn-pill" id="title" name="title" type="text" placeholder="Enter title">
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="row">
+                                    <div class="col">
+                                        <div class="mb-3">
+                                            <label class="form-label">Description</label>
+                                            <textarea class="form-control btn-pill" id="description" name="description" rows="3" placeholder="Enter description"></textarea>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="row">
+                                    <div class="col d-flex align-items-center">
+                                        <input type="checkbox" class="form-check-input" id="is_active" name="is_active">
+                                        <label class="form-label mb-0" for="is_active">Is Active</label>
+                                    </div>
+                                </div>
+
+                                <hr>
+
+                                <div class="row">
+                                    <div class="col-12">
+                                        <div class="mb-3">
+                                            <label class="form-label">Telegram Link</label>
+                                            <input class="form-control btn-pill" id="telegram" type="url" placeholder="Enter Telegram URL">
+                                        </div>
+                                    </div>
+
+                                    <div class="col-12">
+                                        <div class="mb-3">
+                                            <label class="form-label">Facebook Link</label>
+                                            <input class="form-control btn-pill" id="facebook" type="url" placeholder="Enter Facebook URL">
+                                        </div>
+                                    </div>
+
+                                    <div class="col-12">
+                                        <div class="mb-3">
+                                            <label class="form-label">Instagram Link</label>
+                                            <input class="form-control btn-pill" id="instagram" type="url" placeholder="Enter Instagram URL">
+                                        </div>
+                                    </div>
+
+                                    <div class="col-12">
+                                        <div class="mb-3">
+                                            <label class="form-label">YouTube Link</label>
+                                            <input class="form-control btn-pill" id="youtube" type="url" placeholder="Enter YouTube URL">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div style="padding-left: 20px; padding-right: 20px; margin-bottom: 10px;">
+                                <div class="error-success-div p-6"></div>
+                            </div>
+
+                            <div class="card-footer text-end">
+                                <button class="btn btn-primary custom-large-btn me-3" type="submit">Submit</button>
+                                <button class="btn btn-danger" type="button" data-bs-dismiss="modal">Close</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!--Add modal-->
+
+
+<!--Edit modal-->
+<div class="modal fade" id="editModal" tabindex="-1" role="dialog" aria-labelledby="editModal" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+        <div class="modal-content">
+            <div class="modal-body">
+                <h1 class="text-center">Edit Social Media Ad</h1>
+                <div class="modal-toggle-wrapper">
+                    <div class="card">
+                        <form class="form theme-form dark-inputs">
+                            {% csrf_token %}
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col">
+                                        <div class="mb-3">
+                                            <label class="form-label">Ad Title</label>
+                                            <input class="form-control btn-pill" id="edit-title" name="edit_title" type="text" placeholder="Enter title">
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="row">
+                                    <div class="col">
+                                        <div class="mb-3">
+                                            <label class="form-label">Description</label>
+                                            <textarea class="form-control btn-pill" id="edit-description" name="edit_description" rows="3" placeholder="Enter description"></textarea>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="row">
+                                    <div class="col d-flex align-items-center">
+                                        <input type="checkbox" class="form-check-input" id="edit-is_active" name="is_active">
+                                        <label class="form-label mb-0" for="edit-is_active">Is Active</label>
+                                    </div>
+                                </div>
+
+                                <hr>
+
+                                <div class="row">
+                                    <div class="col">
+                                        <div class="mb-3">
+                                            <label class="form-label">Telegram Link</label>
+                                            <input class="form-control btn-pill" id="edit-telegram" type="url" placeholder="Enter Telegram URL">
+                                        </div>
+                                    </div>
+
+                                    <div class="col">
+                                        <div class="mb-3">
+                                            <label class="form-label">Facebook Link</label>
+                                            <input class="form-control btn-pill" id="edit-facebook" type="url" placeholder="Enter Facebook URL">
+                                        </div>
+                                    </div>
+
+                                    <div class="col">
+                                        <div class="mb-3">
+                                            <label class="form-label">Instagram Link</label>
+                                            <input class="form-control btn-pill" id="edit-instagram" type="url" placeholder="Enter Instagram URL">
+                                        </div>
+                                    </div>
+
+                                    <div class="col">
+                                        <div class="mb-3">
+                                            <label class="form-label">YouTube Link</label>
+                                            <input class="form-control btn-pill" id="edit-youtube" type="url" placeholder="Enter YouTube URL">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div style="padding-left: 20px; padding-right: 20px; margin-bottom: 10px;">
+                                <div class="error-success-div p-6"></div>
+                            </div>
+
+                            <div class="card-footer text-end">
+                                <button class="btn btn-primary custom-large-btn me-3" type="submit">Submit</button>
+                                <button class="btn btn-danger" type="button" data-bs-dismiss="modal">Close</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<!--Edit modal-->
+
+<!--Delete Modal-->
+<div class="modal fade" id="deleteConfirmationModal" tabindex="-1" role="dialog" aria-labelledby="deleteConfirmationModal" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-toggle-wrapper text-start dark-sign-up">
+                <div class="modal-body">
+                    <!-- Trash SVG -->
+                    <div class="text-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="96" height="96" viewBox="0 0 24 24">
+                            <path fill="#ce2222" d="M10 5h4a2 2 0 1 0-4 0M8.5 5a3.5 3.5 0 1 1 7 0h5.75a.75.75 0 0 1 0 1.5h-1.32l-1.17 12.111A3.75 3.75 0 0 1 15.026 22H8.974a3.75 3.75 0 0 1-3.733-3.389L4.07 6.5H2.75a.75.75 0 0 1 0-1.5zm2 4.75a.75.75 0 0 0-1.5 0v7.5a.75.75 0 0 0 1.5 0zM14.25 9a.75.75 0 0 0-.75.75v7.5a.75.75 0 0 0 1.5 0v-7.5a.75.75 0 0 0-.75-.75" stroke-width="0.8" stroke="#ce2222" />
+                        </svg>
+                    </div>
+                    <div class="p-4">
+                        <h4 class="mb-3 text-center">Are you sure?</h4>
+                        <p class="mb-4 text-center">This action will permanently delete the region.</p>
+                        <div class="card-footer text-end">
+                            <div class="d-flex justify-content-center gap-2">
+                            <button id="confirm-delete" class="btn btn-danger">Yes</button>
+                            <button class="btn btn-secondary close-btn" type="button" data-bs-dismiss="modal">Cancel</button>
+                        </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<!--Delete Modal-->
+
+<!-- Success Modal -->
+<div class="modal fade" id="deleteSuccessModal" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog modal-sm modal-dialog-centered">
+        <div class="modal-content border-0 text-center p-4">
+        <!-- Animated Checkmark SVG -->
+        <div class="text-center">
+            {% comment %} <svg xmlns="http://www.w3.org/2000/svg"
+                class="checkmark"
+                viewBox="0 0 52 52">
+                <circle class="checkmark__circle" cx="26" cy="26" r="25" fill="none"/>
+                <path class="checkmark__check" fill="none"
+                    d="M14 27l7 7 17-17"/>
+            </svg> {% endcomment %}
+            <img src="{% static 'assets/images/tick_anim.gif' %}" alt="Success" class="success-media" style="width: 150px; height: 150px;"/>
+        </div>
+        <h5 class="mt-3">Deleted successfully!</h5>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scriptcontent %} 
+
+<script src="{% static 'assets/js/datatable/datatables/jquery.dataTables.min.js' %}"></script>
+<script src="{% static 'assets/js/datatable/datatables/dataTables1.js' %}"></script>
+<script src="{% static 'assets/js/datatable/datatables/dataTables.bootstrap5.js' %}"></script>
+<script src="{% static 'assets/js/datatable/datatables/datatable.custom2.js' %}"></script>
+
+
+<script>
+    function showMessage(type, message) {
+        const div = $(".error-success-div");
+
+        // routine to set text + color and then expand
+        function expand() {
+            div
+            .removeClass("error-message success-message")
+            .addClass(type + "-message")
+            .text(message);
+
+            // small delay so the browser “sees” the reset
+            requestAnimationFrame(() => {
+            div.addClass("show");
+            });
+
+            if (type === "success") {
+            setTimeout(() => location.reload(), 2000);
+            }
+        }
+
+        if (div.hasClass("show")) {
+            // 1. If already shown, collapse first
+            div.removeClass("show");
+
+            // 2. Wait for collapse transition to finish, then expand
+            div.one("transitionend", expand);
+        } else {
+            // first time: just expand
+            expand();
+        }
+    }
+
+    // ADD
+    $("#addModal form").on("submit", e => {
+        e.preventDefault();
+        const title = $("#addModal #title").val();
+        const description = $("#addModal #description").val();
+        const is_active = $("#addModal #is_active").is(":checked");
+        const telegram_link = $("#addModal #telegram").val();
+        const facebook_link = $("#addModal #facebook").val();
+        const instagram_link = $("#addModal #instagram").val();
+        const youtube_link = $("#addModal #youtube").val();
+
+        fetch("{% url 'social_media_links' %}", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "X-CSRFToken": "{{ csrf_token }}"
+            },
+            body: JSON.stringify({
+                action: "add", title, description, is_active,
+                telegram_link, facebook_link, instagram_link, youtube_link
+            })
+        })
+        .then(r => r.json())
+        .then(d => showMessage(d.status, d.message));
+    });
+
+    // EDIT
+    $(document).on("click", ".edit-icon", function () {
+        const { id, title, description, is_active, telegram, facebook, instagram, youtube } = this.dataset;
+        editId = id;
+        $("#edit-title").val(title);
+        $("#edit-description").val(description);
+        $("#edit-is_active").prop("checked", is_active === true || is_active === "true");
+        $("#edit-telegram").val(telegram);
+        $("#edit-facebook").val(facebook);
+        $("#edit-instagram").val(instagram);
+        $("#edit-youtube").val(youtube);
+    });
+
+    $("#editModal form").on("submit", e => {
+        e.preventDefault();
+        const title = $("#edit-title").val();
+        const description = $("#edit-description").val();
+        const is_active = $("#edit-is_active").is(":checked");
+        const telegram_link = $("#edit-telegram").val();
+        const facebook_link = $("#edit-facebook").val();
+        const instagram_link = $("#edit-instagram").val();
+        const youtube_link = $("#edit-youtube").val();
+
+        fetch("{% url 'social_media_links' %}", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "X-CSRFToken": "{{ csrf_token }}"
+            },
+            body: JSON.stringify({
+                action: "edit", id: editId, title, description, is_active,
+                telegram_link, facebook_link, instagram_link, youtube_link
+            })
+        })
+        .then(r => r.json())
+        .then(d => showMessage(d.status, d.message));
+    });
+
+    // DELETE
+    let pendingDeleteId = null;
+
+    $(document).on("click", ".delete-icon", function () {
+        pendingDeleteId = this.dataset.id;
+        new bootstrap.Modal($("#deleteConfirmationModal")[0]).show();
+    });
+
+    $("#confirm-delete").on("click", function () {
+        fetch("{% url 'social_media_links' %}", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "X-CSRFToken": "{{ csrf_token }}"
+            },
+            body: JSON.stringify({ action: "delete", id: pendingDeleteId })
+        })
+        .then(r => r.json())
+        .then(d => {
+            bootstrap.Modal.getInstance($("#deleteConfirmationModal")[0]).hide();
+            const successModal = new bootstrap.Modal($("#deleteSuccessModal")[0]);
+            successModal.show();
+            setTimeout(() => {
+                successModal.hide();
+                location.reload();
+            }, 1500);
+        });
+    });
+
+    // Explicitly hide modal & backdrop on Cancel
+    $(document).on("click", ".close-btn", function() {
+    const modalEl = document.getElementById("deleteConfirmationModal");
+    const modal = bootstrap.Modal.getInstance(modalEl);
+    if (modal) {
+        modal.hide();                     // hide the modal
+    }
+    // In case backdrop sticks around, remove it:
+    document.querySelectorAll(".modal-backdrop").forEach(bg => bg.remove());
+    });
+</script>
+
+{% endblock %}

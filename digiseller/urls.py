@@ -13,4 +13,7 @@ urlpatterns = [
     # path("webhook-callback/", views.digiseller_webhook_callback, name="digiseller_webhook_callback"),
     
     path("order-confirmation/", views.digiseller_deliver, name="digiseller_deliver"),
+    
+    path("order_sample/", views.order_sample, name="order_sample"),
+    path("order_sample/", views.order_sample, name="order_sample"),
 ]
