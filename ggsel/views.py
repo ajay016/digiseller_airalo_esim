@@ -22,44 +22,50 @@ from rest_framework.permissions import AllowAny
 from datetime import datetime
 from django.db.models import Count
 from django.views.decorators.csrf import csrf_exempt
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Dict, List, Tuple
 from django.http import HttpResponse
 from django.utils import translation
+import traceback
 import base64
 from django.conf import settings
 import requests
 import hashlib
+import logging
 import time
 import json
 import re
 from esim.models import *
-from airalo.tasks.airalo_tasks import purchase_airalo_sim, fetch_completed_orders
+from ggsel.models import *
+from airalo.tasks.airalo_tasks import purchase_airalo_sim_for_ggsel, fetch_completed_orders
 
 
 
 
 
 
+logger = logging.getLogger(__name__)
 
 # API Endpoints
-DIGISELLER_TOKEN_CACHE_KEY = 'digiseller_token'
-TOKEN_API_URL = "https://api.digiseller.ru/api/apilogin"
-SELLER_GOODS_URL = "https://api.digiseller.com/api/seller-goods"
-PRODUCT_DETAIL_URL = "https://api.digiseller.com/api/products/{product_id}/data?lang=en-US"
+GGSEL_TOKEN_CACHE_KEY = 'ggsel_token'
+TOKEN_API_URL = "https://seller.ggsel.net/api_sellers/api/apilogin"
+SELLER_GOODS_URL = "https://seller.ggsel.net/api_sellers/api/seller-goods"
+PRODUCT_DETAIL_URL = "https://seller.ggsel.net/api_sellers/api/products/{product_id}/data"
+GGSEL_BASE_API = "https://seller.ggsel.net"
 
-SELLER_ID = settings.DIGISELLER_SELLER_ID
-API_KEY = settings.DIGISELLER_API_KEY
+SELLER_ID = settings.GGSEL_SELLER_ID
+API_KEY = settings.GGSEL_API_KEY
 
 MAX_RETRIES = 3
 RETRY_DELAY_SECONDS = 2
 
 # 1. Manage Digiseller token creation with caching
-def get_digiseller_token():
+def get_ggsel_token():
     """
     Get a valid Digiseller token from cache or request a new one using their API.
     Retries on failure with exponential backoff.
     """
-    token = cache.get(DIGISELLER_TOKEN_CACHE_KEY)
+    token = cache.get(GGSEL_TOKEN_CACHE_KEY)
     if token:
         return token
 
@@ -67,10 +73,12 @@ def get_digiseller_token():
     signature = hashlib.sha256(f"{API_KEY}{timestamp}".encode('utf-8')).hexdigest()
 
     payload = {
-        "seller_id": SELLER_ID,
-        "timestamp": timestamp,
-        "sign": signature
+        "seller_id": int(SELLER_ID),
+        "timestamp": str(timestamp),
+        "sign": str(signature)
     }
+    
+    print('payload in get token: ', payload)
 
     for attempt in range(1, MAX_RETRIES + 1):
         try:
@@ -101,12 +109,12 @@ def get_digiseller_token():
             if ttl_seconds <= 0:
                 raise Exception("Received expired token")
 
-            cache.set(DIGISELLER_TOKEN_CACHE_KEY, token, timeout=ttl_seconds)
-            print("✅ Token obtained and cached")
+            cache.set(GGSEL_TOKEN_CACHE_KEY, token, timeout=ttl_seconds)
+            print("✅ Token obtained and cached: ", token)
             return token
 
         except Exception as e:
-            print(f"❌ Attempt {attempt} failed: {e}")
+            logger.exception(f"❌ Attempt {attempt} failed to get token: {e}")
             if attempt == MAX_RETRIES:
                 raise Exception(f"Failed to obtain Digiseller token after {MAX_RETRIES} attempts: {e}")
             else:
@@ -114,29 +122,138 @@ def get_digiseller_token():
     
 
 # 2. Fetch seller goods list with generated token
-def fetch_seller_goods(rows=1000, page=1, owner_id=1):
-    token = get_digiseller_token()
-    payload = {
-        "id_seller": SELLER_ID,
-        "order_col": "name",
-        "order_dir": "asc",
-        "rows": rows,
-        "page": page,
-        "currency": "RUR",
-        "lang": "en-US",
-        "show_hidden": 1,
-        "owner_id": owner_id
-    }
-    print('payload in fetch seller goods: ', payload)
-    resp = requests.post(f"{SELLER_GOODS_URL}?token={token}", json=payload, timeout=15)
+# def fetch_seller_goods(rows=1000, owner_id=1):
+#     """
+#     Fetch all seller goods from Digiseller API, handling pagination automatically.
+#     Returns a list of all product rows.
+#     """
+#     token = get_ggsel_token()
+#     all_products = []
+#     page = 1
+#     total_pages = 1  # Default fallback
+
+#     try:
+#         while page <= total_pages:
+#             payload = {
+#                 "id_seller": SELLER_ID,
+#                 "order_col": "name",
+#                 "order_dir": "asc",
+#                 "rows": rows,
+#                 "page": page,
+#                 "currency": "RUR",
+#                 "lang": "en-US",
+#                 "show_hidden": 1,
+#                 "owner_id": owner_id,
+#             }
+
+#             logger.info(f"📄 Fetching page {page} (rows={rows}, owner_id={owner_id})")
+#             resp = requests.post(f"{SELLER_GOODS_URL}?token={token}", json=payload, timeout=20)
+#             resp.raise_for_status()
+
+#             text = resp.content.decode("utf-8-sig")
+#             raw = json.loads(text)
+
+#             if page == 1:
+#                 total_pages = int(raw.get("pages", 1))
+#                 logger.info(f"🧾 Total pages to fetch: {total_pages}")
+
+#             page_rows = raw.get("rows", [])
+#             all_products.extend(page_rows)
+
+#             logger.info(f"✅ Page {page}/{total_pages} fetched: {len(page_rows)} items")
+
+#             if not page_rows:
+#                 logger.warning(f"⚠️ No data returned on page {page}, stopping early.")
+#                 break
+
+#             page += 1
+#             time.sleep(1)  # Optional delay to avoid rate limiting
+
+#         logger.info(f"🎯 Total products fetched: {len(all_products)}")
+#         return all_products
+
+#     except Exception as e:
+#         logger.exception(f"fetch_seller_goods error: {e}")
+#         GgselFailedEntry.objects.create(
+#             reason=f"fetch_seller_goods error: {e}",
+#             data={"owner_id": owner_id, "page": page},
+#         )
+#         return []
+
+
+def fetch_seller_goods(rows=1000, owner_id=1, max_workers=8):
+    """
+    Fetch all seller goods from Digiseller API concurrently.
+    Returns a list of all product rows.
+    """
+    token = get_ggsel_token()
+    all_products = []
+    page = 1
+    total_pages = 1
+
+    # First call just to get total pages
     try:
+        logger.info(f"📄 Fetching first page to detect total page count...")
+        payload = {
+            "id_seller": SELLER_ID,
+            "order_col": "name",
+            "order_dir": "asc",
+            "rows": rows,
+            "page": page,
+            "currency": "RUR",
+            "lang": "en-US",
+            "show_hidden": 1,
+            "owner_id": owner_id,
+        }
+        resp = requests.post(f"{SELLER_GOODS_URL}?token={token}", json=payload, timeout=20)
         resp.raise_for_status()
-        text = resp.content.decode('utf-8-sig')
+        text = resp.content.decode("utf-8-sig")
         raw = json.loads(text)
-        return raw.get("rows", [])
+
+        total_pages = int(raw.get("pages", 1))
+        first_page_rows = raw.get("rows", [])
+        all_products.extend(first_page_rows)
+
+        logger.info(f"🧾 Total pages detected: {total_pages}")
+        logger.info(f"✅ Page 1 fetched with {len(first_page_rows)} items")
+
     except Exception as e:
-        DigisellerFailedEntry.objects.create(reason=f"fetch_seller_goods error: {e}", data={'payload': payload})
+        logger.exception(f"Initial page fetch failed: {e}")
         return []
+
+    # Helper function to fetch a single page
+    def fetch_page(page_number):
+        try:
+            payload["page"] = page_number
+            resp = requests.post(f"{SELLER_GOODS_URL}?token={token}", json=payload, timeout=20)
+            resp.raise_for_status()
+            text = resp.content.decode("utf-8-sig")
+            raw = json.loads(text)
+            rows = raw.get("rows", [])
+            logger.info(f"✅ Page {page_number} fetched ({len(rows)} items)")
+            return rows
+        except Exception as e:
+            logger.exception(f"⚠️ Error fetching page {page_number}: {e}")
+            GgselFailedEntry.objects.create(
+                reason=f"fetch_seller_goods page {page_number} error: {e}",
+                data={"owner_id": owner_id, "page": page_number},
+            )
+            return []
+
+    # Fetch remaining pages concurrently
+    if total_pages > 1:
+        logger.info(f"🚀 Fetching remaining {total_pages - 1} pages concurrently (max_workers={max_workers})")
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            futures = {executor.submit(fetch_page, p): p for p in range(2, total_pages + 1)}
+            for future in as_completed(futures):
+                try:
+                    rows = future.result()
+                    all_products.extend(rows)
+                except Exception as e:
+                    logger.exception(f"Thread exception on page {futures[future]}: {e}")
+
+    logger.info(f"🎯 Total products fetched: {len(all_products)}")
+    return all_products
 
 # 3. Filter products starting with 'esim' (case-insensitive)
 def filter_esim_products(products):
@@ -158,7 +275,8 @@ def fetch_product_variants(product_id):
         raw = json.loads(text)
         return raw.get("product", {}).get("options", [])
     except Exception as e:
-        DigisellerFailedEntry.objects.create(
+        logger.exception(f"fetch_product_variants error (id {product_id}): {e}")
+        GgselFailedEntry.objects.create(
             reason=f"fetch_product_variants error (id {product_id}): {e}",
             data={'product_id': product_id}
         )
@@ -168,8 +286,7 @@ def fetch_product_variants(product_id):
 # 5. Save product and its variants
 def save_product_with_variants(prod_data):
     # Save product
-    market = Market.objects.filter(market_id=prod_data["owner_id"]).first()
-    product, _ = DigisellerProduct.objects.update_or_create(
+    product, _ = GgselProduct.objects.update_or_create(
         id_goods=prod_data["id_goods"],
         defaults={
             "name_goods": prod_data.get("name_goods"),
@@ -181,7 +298,6 @@ def save_product_with_variants(prod_data):
             "price_usd": prod_data.get("price_usd"),
             "price_rur": prod_data.get("price_rur"),
             "price_eur": prod_data.get("price_eur"),
-            "market": market,
         }
     )
     # Remove old variants
@@ -201,7 +317,7 @@ def save_product_with_variants(prod_data):
 
             try:
                 # Create or update variant by variant_value
-                DigisellerVariant.objects.update_or_create(
+                GgselVariant.objects.update_or_create(
                     product=product,
                     variant_value=variant_value,
                     defaults={
@@ -215,13 +331,14 @@ def save_product_with_variants(prod_data):
                     }
                 )
             except Exception as e:
-                DigisellerFailedEntry.objects.create(
+                logger.exception(f"variant save error (prod {product.id_goods}): {e}")
+                GgselFailedEntry.objects.create(
                     reason=f"variant save error (prod {product.id_goods}): {e}",
                     data=variant
                 )
 
     # Delete variants that are no longer present in the fetched data
-    DigisellerVariant.objects.filter(
+    GgselVariant.objects.filter(
         product=product
     ).exclude(
         variant_value__in=updated_variant_values
@@ -232,14 +349,16 @@ def save_product_with_variants(prod_data):
 # 6. Main view to orchestrate the sync process
 @api_view(["POST"])
 @permission_classes([AllowAny])
-def sync_esim_products(request):
+def sync_ggsel_products(request):
     try:
         owner_id = request.data.get("owner_id", 1)
-        print('owner id in sync data: ', owner_id)
+        logger.info(f"Starting product sync for owner_id={owner_id}")
+
         raw_products = fetch_seller_goods(owner_id=owner_id)
-        print('raw products: ', raw_products)
+        logger.info(f"✅ Total fetched: {len(raw_products)}")
+
         esim_products = filter_esim_products(raw_products)
-        print('esim productss: ', esim_products)
+        logger.info(f"📦 Filtered eSIM products: {len(esim_products)}")
 
         saved_ids = []
         for prod in esim_products:
@@ -247,13 +366,16 @@ def sync_esim_products(request):
                 saved = save_product_with_variants(prod)
                 saved_ids.append(saved.id_goods)
             except Exception as e:
-                DigisellerFailedEntry.objects.create(
+                logger.exception(f"save_product error (id {prod.get('id_goods')}): {e}")
+                GgselFailedEntry.objects.create(
                     reason=f"save_product error (id {prod.get('id_goods')}): {e}",
-                    data=prod
+                    data=prod,
                 )
+
         return Response({"saved_product_ids": saved_ids}, status=status.HTTP_201_CREATED)
 
     except Exception as e:
+        logger.exception(f"Sync failed: {e}")
         return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
@@ -262,7 +384,7 @@ def sync_esim_products(request):
 def variant_duplicate_texts(request):
     # Group by 'text', count how many times each appears, and filter where count > 1
     duplicates = (
-        DigisellerVariant.objects
+        GgselVariant.objects
         .values('text')
         .annotate(text_count=Count('id'))
         .filter(text_count__gt=1)
@@ -277,54 +399,54 @@ def variant_duplicate_texts(request):
 
 
 
-@require_GET
-def digiseller_webhook_test(request):
-    # Dummy values to simulate Digiseller's behavior
-    password = "your_webhook_password".lower()
-    ID_I = 256070005
-    ID_D = 3498404
-    AMOUNT = 19.99
-    CURRENCY = "WMZ"
-    EMAIL = "ajayghosh28@gmail.com"
-    DATE = "2025-06-24 15:30:00"
-    THROUGH = base64.b64encode(b"user_id=42&tracking_id=abc123").decode()
-    AGENT = "test-agent"
-    CARTUID = "cart-uid-001"
-    ISMYPRODUCT = True
-    IP = "192.168.1.100"
+# @require_GET
+# def digiseller_webhook_test(request):
+#     # Dummy values to simulate Digiseller's behavior
+#     password = "your_webhook_password".lower()
+#     ID_I = 256070005
+#     ID_D = 3498404
+#     AMOUNT = 19.99
+#     CURRENCY = "WMZ"
+#     EMAIL = "ajayghosh28@gmail.com"
+#     DATE = "2025-06-24 15:30:00"
+#     THROUGH = base64.b64encode(b"user_id=42&tracking_id=abc123").decode()
+#     AGENT = "test-agent"
+#     CARTUID = "cart-uid-001"
+#     ISMYPRODUCT = True
+#     IP = "192.168.1.100"
 
-    # SHA256 hash of "password;ID_I;ID_D"
-    hash_string = f"{password};{ID_I};{ID_D}"
-    SHA256 = hashlib.sha256(hash_string.encode()).hexdigest()
+#     # SHA256 hash of "password;ID_I;ID_D"
+#     hash_string = f"{password};{ID_I};{ID_D}"
+#     SHA256 = hashlib.sha256(hash_string.encode()).hexdigest()
 
-    payload = {
-        "ID_I": ID_I,
-        "ID_D": ID_D,
-        "Amount": AMOUNT,
-        "Currency": CURRENCY,
-        "Email": EMAIL,
-        "Date": DATE,
-        "SHA256": SHA256,
-        "Through": THROUGH,
-        "IP": IP,
-        "Agent": AGENT,
-        "CartUID": CARTUID,
-        "IsMyProduct": ISMYPRODUCT
-    }
+#     payload = {
+#         "ID_I": ID_I,
+#         "ID_D": ID_D,
+#         "Amount": AMOUNT,
+#         "Currency": CURRENCY,
+#         "Email": EMAIL,
+#         "Date": DATE,
+#         "SHA256": SHA256,
+#         "Through": THROUGH,
+#         "IP": IP,
+#         "Agent": AGENT,
+#         "CartUID": CARTUID,
+#         "IsMyProduct": ISMYPRODUCT
+#     }
 
-    # Change this to your real callback URL in production
-    callback_url = request.build_absolute_uri("/digiseller/webhook-callback/")
+#     # Change this to your real callback URL in production
+#     callback_url = request.build_absolute_uri("/digiseller/webhook-callback/")
 
-    try:
-        response = requests.post(callback_url, json=payload, timeout=10)
-        return JsonResponse({
-            "status": "Test payload sent",
-            "sent_payload": payload,
-            "response_status_code": response.status_code,
-            "response_body": response.text
-        })
-    except Exception as e:
-        return JsonResponse({"error": str(e)}, status=500)
+#     try:
+#         response = requests.post(callback_url, json=payload, timeout=10)
+#         return JsonResponse({
+#             "status": "Test payload sent",
+#             "sent_payload": payload,
+#             "response_status_code": response.status_code,
+#             "response_body": response.text
+#         })
+#     except Exception as e:
+#         return JsonResponse({"error": str(e)}, status=500)
     
     
     
@@ -364,7 +486,7 @@ def digiseller_webhook_test(request):
 #         return JsonResponse({"status": "no action needed"})
 
 #     # 3) Fetch the full purchase-info from Digiseller
-#     token        = get_digiseller_token()
+#     token        = get_ggsel_token()
 #     purchase_url = f"https://api.digiseller.com/api/purchase/info/{order_id}?token={token}"
 #     resp         = requests.get(purchase_url, timeout=10)
 
@@ -419,7 +541,7 @@ def digiseller_webhook_test(request):
 #             "method": buyer_info.get("payment_method"),
 #         })
 
-#         # Optional: persist to your DigisellerOrder model here…
+#         # Optional: persist to your GgselOrder model here…
 
 #     return JsonResponse({"status": "processed"})
 
@@ -473,49 +595,71 @@ class SkipWebhook(Exception):
 
 
 @require_GET
-def digiseller_deliver(request):
+def ggseller_deliver(request):
+    # 1️⃣ Handle language
     lang = request.GET.get('lang', 'ru')
     if lang not in dict(settings.LANGUAGES):
         lang = 'ru'
-
-    # 2) Activate it
     translation.activate(lang)
     request.LANGUAGE_CODE = lang
-    
-    print("DEBUG: GET params =", dict(request.GET))
-    
-    lang = request.GET.get('lang', 'ru')
-    print("DEBUG: requested lang =", lang)
-    
-    code = request.GET.get("uniquecode")
-    print('---------unique code--------', code)
-    if not code:
-        return HttpResponseBadRequest("Missing code")
-    
-    # Save failed order record early
-    if not DigisellerOrder.objects.filter(unique_code=code).exists():
-        failed_order, created = DigisellerFailedOrder.objects.get_or_create(
-            unique_code=code,
-            defaults={"status": "pending"}
-        )
 
+    # 2️⃣ Extract GET parameters
+    id_i = request.GET.get("id_i")  # order ID
+    id_d = request.GET.get("id_d")
+    amount = request.GET.get("amount")
+    currency = request.GET.get("curr")
+    date = request.GET.get("date")
+    email = request.GET.get("email")
+    sha256 = request.GET.get("sha256")
+    ip = request.GET.get("ip")
+    is_my_product = request.GET.get("isMyProduct")
+
+    print("🔍 Received parameters:", {
+        "id_i": id_i,
+        "id_d": id_d,
+        "amount": amount,
+        "currency": currency,
+        "date": date,
+        "email": email,
+        "sha256": sha256,
+        "ip": ip,
+        "isMyProduct": is_my_product,
+    })
+
+    # 3️⃣ Validate required params
+    if not id_i or not id_d:
+        return HttpResponseBadRequest("Missing required parameters: id_i or id_d")
+
+    order_id = int(id_i)
+
+    # 4️⃣ Save failed order record if not exists
+    failed_order, created = GgselFailedOrder.objects.get_or_create(
+        order_id=order_id,
+        defaults={"status": "pending"}
+    )
+
+    # 5️⃣ Handle webhook
     try:
-        digiseller_order = verify_unique_code_and_get_info(code)
+        ggsel_order = handle_ggseller_webhook(request.GET, order_id)
     except SkipWebhook as exc:
-        DigisellerFailedOrder.objects.filter(unique_code=code).update(status="skipped")
+        failed_order.status = "skipped"
+        failed_order.save(update_fields=["status"])
         return HttpResponse(f"Order ignored: {exc}", status=200)
     except Exception as exc:
-        DigisellerFailedOrder.objects.filter(unique_code=code).update(status="error")
+        failed_order.status = "error"
+        failed_order.save(update_fields=["status"])
         return HttpResponse(f"Server error: {exc}", status=500)
-    
-    variant = digiseller_order.variant
+
+    failed_order.status = "success"
+    failed_order.save(update_fields=["status"])
+
+    # 6️⃣ Extract variant & validity
+    variant = ggsel_order.variant
     package = variant.airalo_package if variant else None
-    
-    # Extract validity from package_id
+
     validity = None
     if package and package.package_id:
-        parts = package.package_id.split("-")
-        for part in parts:
+        for part in package.package_id.split("-"):
             if "day" in part.lower():
                 try:
                     number = int(part.lower().replace("days", "").replace("day", ""))
@@ -523,29 +667,31 @@ def digiseller_deliver(request):
                     break
                 except ValueError:
                     pass
-                
-    # Get last active instances of all ad models
+
+    # 7️⃣ Load ads
     purchase_discount_ad = PurchaseDiscountAd.objects.filter(is_active=True).last()
     travel_guide_ad = TravelGuideAd.objects.filter(is_active=True).last()
     selected_product_ad = SelectedProductAd.objects.filter(is_active=True).last()
     social_media_ad = SocialMediaAd.objects.filter(is_active=True).last()
     sponsor_ad = SponsorAd.objects.filter(is_active=True).last()
-    
     product_ad_items = selected_product_ad.items.all() if selected_product_ad else []
 
+    # 8️⃣ Build context
     context = {
         'current_lang': lang,
         'available_langs': settings.LANGUAGES,
-        "order_id": digiseller_order.order_id,
-        "product": digiseller_order.product,
-        "variant": digiseller_order.variant.text,
-        "quantity": digiseller_order.quantity,
-        "purchase_amount": digiseller_order.purchase_amount,
-        "purchase_currency": digiseller_order.purchase_currency,
-        "purchase_date": digiseller_order.purchase_date,
-        "unique_code": digiseller_order.unique_code,
+        "order_id": ggsel_order.order_id,
+        "product": ggsel_order.product,
+        "variant": ggsel_order.variant.text,
+        "quantity": ggsel_order.quantity,
+        "purchase_amount": amount or ggsel_order.purchase_amount,
+        "purchase_currency": currency or ggsel_order.purchase_currency,
+        "purchase_date": date or ggsel_order.purchase_date,
+        "email": email,
+        "ip": ip,
+        "sha256": sha256,
         "validity": validity,
-        
+        "is_my_product": is_my_product,
         "purchase_discount_ad": purchase_discount_ad,
         "travel_guide_ad": travel_guide_ad,
         "selected_product_ad": selected_product_ad,
@@ -558,7 +704,7 @@ def digiseller_deliver(request):
 
 
 def verify_unique_code_and_get_info(code: str) -> Dict:
-    token = get_digiseller_token()
+    token = get_ggsel_token()
     url = f"https://api.digiseller.com/api/purchases/unique-code/{code}?token={token}"
     resp = requests.get(url, timeout=10)
     resp.raise_for_status()
@@ -574,7 +720,7 @@ def verify_unique_code_and_get_info(code: str) -> Dict:
         raise ValueError(f"Invalid or missing 'id_goods' (product ID) in Digiseller response: {id_goods}")
 
     try:
-        digiseller_order = handle_digiseller_webhook(data, code)
+        ggsel_order = handle_ggseller_webhook(data, code)
     except SkipWebhook as exc:
         # Nothing to do for this event (invalid product, duplicate, etc.)
         print(f"ℹ️  {exc}")
@@ -585,12 +731,12 @@ def verify_unique_code_and_get_info(code: str) -> Dict:
         raise
 
 
-    return digiseller_order
+    return ggsel_order
 
 
 def get_purchase_info(order_id: int, token: str) -> Dict:
     """Fetch purchase/info and raise for network / API failures."""
-    url = f"https://api.digiseller.com/api/purchase/info/{order_id}?token={token}"
+    url = f"{GGSEL_BASE_API}/api_sellers/api/purchase/info/{order_id}?token={token}"
     resp = requests.get(url, timeout=10)
     resp.raise_for_status()
     return resp.json().get("content", {})
@@ -602,24 +748,24 @@ def validate_product(content: Dict, product_id: int, order_id: int) -> None:
         raise SkipWebhook("item_id does not match product_id")
 
     # if content.get("unique_code_state", {}).get("state") != 1:
-    #     update_digiseller_order(order_id, content.get("unique_code_state", {}).get("state"))
+    #     update_ggsel_order(order_id, content.get("unique_code_state", {}).get("state"))
     #     raise SkipWebhook("unique_code_state.state != 1")
 
 
 def find_matching_variants(
-        product: DigisellerProduct,
+        product: GgselProduct,
         options: List[Dict]
-    ) -> List[Tuple[DigisellerVariant, Package]]:
+    ) -> List[Tuple[GgselVariant, Package]]:
     """Return [(variant, airalo_package), …] for any matching user_data_id."""
     matches = []
 
     for opt in options:
         v_id = opt.get("user_data_id")
         try:
-            variant = DigisellerVariant.objects.get(
+            variant = GgselVariant.objects.get(
                 product=product, variant_value=v_id
             )
-        except DigisellerVariant.DoesNotExist:
+        except GgselVariant.DoesNotExist:
             continue
 
         if variant.airalo_package:
@@ -631,63 +777,61 @@ def find_matching_variants(
     return matches
 
 
-def handle_digiseller_webhook(data: Dict, code) -> None:
+def handle_ggseller_webhook(data: dict, order_id: int):
     """
-    Orchestrates the full processing flow; raises SkipWebhook when
-    the event should be ignored and lets other exceptions propagate.
+    Processes a Ggsel order webhook and creates or updates the GgselOrder entry.
+    Raises SkipWebhook if the event should be ignored.
     """
-    order_id   = data.get("inv")
-    product_id = data.get("id_goods")
+    product_id_str = data.get("id_d")
+    product_id = int(product_id_str)
+    
 
-    product_qs = DigisellerProduct.objects.filter(id_goods=product_id)
+    product_qs = GgselProduct.objects.filter(id_goods=product_id)
     if not product_qs.exists():
         raise SkipWebhook("Product not found in DB")
 
-    token    = get_digiseller_token()
-    content  = get_purchase_info(order_id, token)
+    token = get_ggsel_token()
+    content = get_purchase_info(order_id, token)
     validate_product(content, product_id, order_id)
 
-    product      = product_qs.get()
-    variants     = find_matching_variants(product, content.get("options", []))
-    buyer_info   = content.get("buyer_info", {})
-    quantity     = content.get("cnt_goods", 1)
-    purchase_date_raw     = content.get("purchase_date", '')
+    product = product_qs.get()
+    variants = find_matching_variants(product, content.get("options", []))
+    buyer_info = content.get("buyer_info", {})
+    quantity = content.get("cnt_goods", 1)
+    purchase_date_raw = content.get("purchase_date", '')
 
-    # --- For now just log; later call Airalo & persist order ---
     for variant, airalo_pkg in variants:
         print("▶️ Airalo package:", airalo_pkg.package_id)
-        
-        # save the digiseller order
-        digiseller_order = persist_and_queue(
+        ggsel_order = persist_and_queue(
             product, variant, airalo_pkg,
             buyer_info, quantity,
-            content, order_id, purchase_date_raw, code
+            content, order_id, purchase_date_raw, code=order_id
         )
-        
-        email = buyer_info.get("email")
-        # email = "ajayghosh28@gmail.com"  # ← test override
+
         print("▶️ Buyer info:", {
-            "email":    email,
-            "ip":       buyer_info.get("ip_address"),
-            "method":   buyer_info.get("payment_method"),
+            "email": buyer_info.get("email"),
+            "ip": buyer_info.get("ip_address"),
+            "method": buyer_info.get("payment_method"),
             "quantity": quantity,
         })
-        
-        return digiseller_order
 
-        # create_digiseller_order(...)
+        return ggsel_order
+
+
+        # create_ggsel_order(...)
         # queue_airalo_purchase(...)
         
         
 def persist_and_queue(product, variant, airalo_pkg, buyer_info, quantity, content, order_id, purchase_date_raw, code):
-    """Create DigisellerOrder and enqueue Celery task."""
+    """Create GgselOrder and enqueue Celery task."""
     try:
-        digiseller_order = DigisellerOrder.objects.get(order_id=order_id)
-        DigisellerFailedOrder.objects.filter(unique_code=code).delete()
-        return digiseller_order
-    except DigisellerOrder.DoesNotExist:
+        # If the order already exists, no need to recreate it
+        ggsel_order = GgselOrder.objects.get(order_id=order_id)
+        GgselFailedOrder.objects.filter(order_id=order_id).delete()
+        return ggsel_order
+    except GgselOrder.DoesNotExist:
         pass  # Proceed to create the order
-    
+
     # Parse purchase_date string (e.g., "29.05.2025 8:49:40")
     try:
         purchase_date = datetime.strptime(purchase_date_raw, "%d.%m.%Y %H:%M:%S")
@@ -696,8 +840,8 @@ def persist_and_queue(product, variant, airalo_pkg, buyer_info, quantity, conten
     except (ValueError, TypeError):
         purchase_date = None  # Fallback if parsing fails
 
-    # email = buyer_info.get("email")
-    digiseller_order = DigisellerOrder.objects.create(
+    # Create new order
+    ggsel_order = GgselOrder.objects.create(
         order_id=order_id,
         product=product,
         variant=variant,
@@ -710,33 +854,35 @@ def persist_and_queue(product, variant, airalo_pkg, buyer_info, quantity, conten
         purchase_currency=content.get("currency_type"),
         invoice_state=content.get("invoice_state"),
         purchase_date=purchase_date,
-        digiseller_transaction_status=content.get("unique_code_state", {}).get("state", 1),
+        ggsel_transaction_status=content.get("unique_code_state", {}).get("state", 1),
         raw_payload=content,
         status="received",
-        unique_code=code
+        unique_code=code  # keep this field for GgselOrder (still in model)
     )
-    
-    purchase_airalo_sim.delay(digiseller_order.id)
-    
-    DigisellerFailedOrder.objects.filter(unique_code=code).delete()
-    
-    if DigisellerFailedOrder.objects.all().exists():
-        print('digiseller failed order exists')
+
+    # Enqueue the Celery background task
+    purchase_airalo_sim_for_ggsel.delay(ggsel_order.id)
+
+    # Remove any failed-order record for this order
+    GgselFailedOrder.objects.filter(order_id=order_id).delete()
+
+    # Retry any remaining failed orders (optional but useful)
+    if GgselFailedOrder.objects.exists():
         from digiseller.tasks.task import retry_all_failed_orders
         retry_all_failed_orders.delay()
+
+    return ggsel_order
+
     
-    return digiseller_order
-    
-    
-def update_digiseller_order(order_id: int, status: int) -> None:
+def update_ggsel_order(order_id: int, status: int) -> None:
     """Update only the digiseller_transaction_status field of an existing order."""
 
     try:
-        order = DigisellerOrder.objects.get(id=order_id)
+        order = GgselOrder.objects.get(id=order_id)
         order.digiseller_transaction_status = status
-        order.save(update_fields=['digiseller_transaction_status'])
+        order.save(update_fields=['ggsel_transaction_status'])
         print(f"Updated order {order_id} with status {status}")
-    except DigisellerOrder.DoesNotExist:
+    except GgselOrder.DoesNotExist:
         pass  # Or handle/log error appropriately
 
 
@@ -762,22 +908,22 @@ def order_sample(request):
         return HttpResponseBadRequest("Missing code")
     
     # Save failed order record early
-    if not DigisellerOrder.objects.filter(unique_code=code).exists():
-        failed_order, created = DigisellerFailedOrder.objects.get_or_create(
+    if not GgselOrder.objects.filter(unique_code=code).exists():
+        failed_order, created = GgselFailedOrder.objects.get_or_create(
             unique_code=code,
             defaults={"status": "pending"}
         )
 
     try:
-        digiseller_order = verify_unique_code_and_get_info(code)
+        ggsel_order = verify_unique_code_and_get_info(code)
     except SkipWebhook as exc:
-        DigisellerFailedOrder.objects.filter(unique_code=code).update(status="skipped")
+        GgselFailedOrder.objects.filter(unique_code=code).update(status="skipped")
         return HttpResponse(f"Order ignored: {exc}", status=200)
     except Exception as exc:
-        DigisellerFailedOrder.objects.filter(unique_code=code).update(status="error")
+        GgselFailedOrder.objects.filter(unique_code=code).update(status="error")
         return HttpResponse(f"Server error: {exc}", status=500)
     
-    variant = digiseller_order.variant
+    variant = ggsel_order.variant
     package = variant.airalo_package if variant else None
     
     # Extract validity from package_id
@@ -805,14 +951,14 @@ def order_sample(request):
     context = {
         'current_lang': lang,
         'available_langs': settings.LANGUAGES,
-        "order_id": digiseller_order.order_id,
-        "product": digiseller_order.product,
-        "variant": digiseller_order.variant.text,
-        "quantity": digiseller_order.quantity,
-        "purchase_amount": digiseller_order.purchase_amount,
-        "purchase_currency": digiseller_order.purchase_currency,
-        "purchase_date": digiseller_order.purchase_date,
-        "unique_code": digiseller_order.unique_code,
+        "order_id": ggsel_order.order_id,
+        "product": ggsel_order.product,
+        "variant": ggsel_order.variant.text,
+        "quantity": ggsel_order.quantity,
+        "purchase_amount": ggsel_order.purchase_amount,
+        "purchase_currency": ggsel_order.purchase_currency,
+        "purchase_date": ggsel_order.purchase_date,
+        "unique_code": ggsel_order.unique_code,
         "validity": validity,
         
         "purchase_discount_ad": purchase_discount_ad,

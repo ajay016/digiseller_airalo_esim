@@ -25,6 +25,7 @@ from django.template.loader import render_to_string
 from esim.utils import digiseller_stats as ds
 from django.db.models.functions import TruncMonth
 from esim.utils import airalo_stats as airalo_stats
+from ggsel.models import *
 from django.db import transaction
 from django.conf import settings
 import requests
@@ -793,3 +794,95 @@ def delete_sponsor_ad(request):
         return JsonResponse({"status": "success", "message": "Product ad deleted successfully."})
     except SelectedProductAd.DoesNotExist:
         return JsonResponse({"status": "error", "message": "Product ad not found."})
+    
+
+
+
+
+@login_required
+def ggseller_products(request, market_id=None):
+    """
+    List all GGseller products, optionally filtered by a specific market.
+    (If you have a `market` relation on GgselProduct, you can filter by that.)
+    """
+ 
+    ggseller_products = GgselProduct.objects.all()
+    print('ggseller_products:', ggseller_products)
+
+
+    context = {
+        'ggseller_products': ggseller_products,
+    }
+    return render(request, 'ggseller/ggseller_products.html', context)
+
+
+@login_required
+def ggseller_product(request, id):
+    """
+    Show a single GGseller product and its variants,
+    with filtering for country and operator to display esim packages.
+    """
+    ggseller_product = get_object_or_404(GgselProduct, id=id)
+    variants = ggseller_product.variants.all()
+
+    countries = Country.objects.all().order_by('title')
+    operator_countries = OperatorCountry.objects.all()
+
+    selected_country_id = request.GET.get('country')
+    selected_operator_id = request.GET.get('operator')
+
+    selected_country = (
+        countries.filter(id=selected_country_id).first()
+        if selected_country_id else countries.first()
+    )
+    selected_operator = (
+        Operator.objects.filter(id=selected_operator_id).first()
+        if selected_operator_id else None
+    )
+
+    # Fetch esim packages
+    packages = Package.objects.select_related('operator', 'operator__country')
+
+    if selected_country:
+        packages = packages.filter(operator__country=selected_country)
+
+    if selected_operator:
+        packages = packages.filter(operator=selected_operator)
+
+    context = {
+        'ggseller_product': ggseller_product,
+        'variants': variants,
+        'countries': countries,
+        'operator_countries': operator_countries,
+        'operators': Operator.objects.all().order_by('title'),
+        'selected_country_id': selected_country.id if selected_country else None,
+        'selected_country_title': selected_country.title if selected_country else '',
+        'selected_operator_id': selected_operator.id if selected_operator else None,
+        'packages': packages.order_by('-price'),
+    }
+    return render(request, 'ggseller/ggseller_product.html', context)
+
+
+
+@require_POST
+def update_ggseller_variants(request):
+    try:
+        data = json.loads(request.body)
+        assignments = data.get('assignments', {})
+        for variant_id, pkg_id in assignments.items():
+            variant = GgselVariant.objects.filter(pk=variant_id).first()
+            if not variant:
+                continue
+            variant.airalo_package_id = pkg_id
+            variant.save(update_fields=['airalo_package'])
+        # explicit 200 OK on success
+        return JsonResponse({
+            'success': True,
+            'message': 'Airalo Packages updated successfully!'
+        }, status=200)
+    except Exception as e:
+        # HTTP 400 on any error
+        return JsonResponse({
+            'success': False,
+            'error': f'Failed to update: {e}'
+        }, status=400)

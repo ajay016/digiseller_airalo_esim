@@ -1,5 +1,6 @@
 from django.urls import path
 from .import views
+from ggsel.views import sync_ggsel_products
 
 
 
@@ -12,8 +13,15 @@ urlpatterns = [
     path('sync-data/', views.sync_data, name='sync_data'),
     path('digiseller-products/<int:market_id>', views.digiseller_products, name='digiseller_products'),
     path('digiseller-product/<int:id>', views.digiseller_product, name='digiseller_product'),
+
+    path('ggseller-products', views.ggseller_products, name='ggseller_products'),
+    path('ggseller-product/<int:id>', views.ggseller_product, name='ggseller_product'),
+    # path('sync_ggsel_products/', sync_ggsel_products, name='sync_ggsel_products'),
+
+
     path('get-packages-by-region/', views.get_packages_by_region, name='get_packages_by_region'),
     path('update-variants/', views.update_variants, name='update_variants'),
+    path('update-ggseller-variants/', views.update_ggseller_variants, name='update_ggseller_variants'),
     path('api/monthly-order-totals/', views.monthly_order_totals, name='monthly_order_totals'),
     
     path('digiseller-deliver/', views.digiseller_deliver, name='digiseller_deliver'),

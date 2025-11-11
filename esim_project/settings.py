@@ -31,6 +31,9 @@ AIRALO_CLIENT_SECRET = config("AIRALO_CLIENT_SECRET")
 DIGISELLER_SELLER_ID = config("DIGISELLER_SELLER_ID")
 DIGISELLER_API_KEY = config("DIGISELLER_API_KEY")
 
+GGSEL_SELLER_ID = config("GGSEL_SELLER_ID")
+GGSEL_API_KEY = config("GGSEL_API_KEY")
+
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
@@ -40,7 +43,7 @@ SECRET_KEY = config("DJANGO_SECRET_KEY")
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['4e92-45-127-51-133.ngrok-free.app', ' https://4e92-45-127-51-133.ngrok-free.app', '*']
+ALLOWED_HOSTS = ['37.220.81.77']
 
 AUTH_USER_MODEL = 'esim.User'
 
@@ -57,6 +60,7 @@ INSTALLED_APPS = [
     'esim',
     'airalo',
     'digiseller',
+    'ggsel',
     'rest_framework',
 ]
 

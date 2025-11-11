@@ -139,10 +139,10 @@
         
         .tag {
             display: inline-block;
-            padding: 0.5rem 0.8rem;
+            padding: 0.75rem 0.95rem;
             background: rgba(255, 255, 255, 0.15);
             border-radius: 2rem;
-            font-size: 0.95rem;
+            font-size: 1.05rem;
             color: white;
             text-decoration: none;
             transition: all 0.2s;
@@ -255,8 +255,7 @@
                     <i class="fas fa-check"></i>
                 </div>
                 <div>
-                    <h1 class="h2 mb-1">{% trans "Your eSIM is on the way!" %}</h1>
-                    {% comment %} <p class="mb-0 opacity-75 small-text">Order #ESIM-2023-05642 • Completed</p> {% endcomment %}
+                    <h1 class="h2 mb-1">📬 {% trans "Your eSIM is on the way" %}</h1>
                     <p class="mb-0 opacity-75 small-text">
                         {% blocktrans with order_id=order_id %}Order {{ order_id }} • Completed{% endblocktrans %}
                     </p>
@@ -270,7 +269,7 @@
             <div class="delivery-status">
                 <div class="d-flex gap-2 align-items-start">
                     <div class="text-primary">
-                        <i class="fas fa-paper-plane"></i>
+                        {% comment %} <i class="fas fa-paper-plane"></i> {% endcomment %}
                     </div>
                     {% comment %} <div>
                         <h3 class="h5 mb-1">Your eSIM is being delivered</h3>
@@ -279,13 +278,19 @@
                     </div> {% endcomment %}
 
                     <div>
-                        <h3 class="h5 mb-1">{% trans "Your eSIM is being delivered" %}</h3>
+                        {% comment %} <h3 class="h5 mb-1">{% trans "Your eSIM is being delivered" %}</h3> {% endcomment %}
 
-                        <p class="mb-1 small-text">
+                        {% comment %} <p class="mb-1 small-text">
                             {% trans "We've sent your eSIM to your email address. Please check your inbox (and spam folder) within the next 30 minutes." %}
-                        </p>
+                        </p> {% endcomment %}
 
-                        {% if social_media_ad.telegram_link %}
+                        <p class="mb-0">{% trans "We have sent your eSIM to the specified email address" %}.</p>
+                        <p class="mb-0">{% trans "Please check your inbox, including the Spam and Promotions folders, within the next 10 minutes" %}.</p>
+                        <br>
+                        <p class="mb-0">❗ {% trans "Didn't receive the email? Don't worry" %}!</p>
+                        <p>{% trans "Contact our support team, and we’ll help you right away" %} 📲</p>
+
+                        {% comment %} {% if social_media_ad.telegram_link %}
                             {% with '<a href="'|add:social_media_ad.telegram_link|add:'" class="fw-bold"><i class="fab fa-telegram"></i> Telegram</a>' as telegram_link %}
                                 <p class="mb-0 small-text">
                                     {% blocktrans with telegram_link=telegram_link|safe %}
@@ -299,7 +304,7 @@
                                     If you don't receive it, contact us immediately for assistance.
                                 {% endblocktrans %}
                             </p>
-                        {% endif %}
+                        {% endif %} {% endcomment %}
                     </div>
                 </div>
             </div>

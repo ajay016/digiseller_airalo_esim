@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-08-01 23:58+0600\n"
+"POT-Creation-Date: 2025-08-04 02:08+0600\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -50,51 +50,50 @@ msgid "Order Summary"
 msgstr "Резюме заказа"
 
 #: .\digiseller\templates\order_confirmation\order_confirmation.html:305
-#: .\digiseller\templates\order_confirmation\order_sample.html:316
+#: .\digiseller\templates\order_confirmation\order_sample.html:332
 msgid "Order ID"
 msgstr "Идентификатор заказа"
 
 #: .\digiseller\templates\order_confirmation\order_confirmation.html:311
-#: .\digiseller\templates\order_confirmation\order_sample.html:320
+#: .\digiseller\templates\order_confirmation\order_sample.html:336
 msgid "Plan"
 msgstr "План"
 
 #: .\digiseller\templates\order_confirmation\order_confirmation.html:315
-#: .\digiseller\templates\order_confirmation\order_sample.html:324
+#: .\digiseller\templates\order_confirmation\order_sample.html:340
 msgid "Active period after eSIM activation"
 msgstr "Активный период после активации esim"
 
 #: .\digiseller\templates\order_confirmation\order_confirmation.html:319
-#: .\digiseller\templates\order_confirmation\order_sample.html:312
+#: .\digiseller\templates\order_confirmation\order_sample.html:328
 msgid "Unique Code"
 msgstr "Уникальный код"
 
 #: .\digiseller\templates\order_confirmation\order_confirmation.html:326
-#: .\digiseller\templates\order_confirmation\order_sample.html:328
+#: .\digiseller\templates\order_confirmation\order_sample.html:344
 msgid "Purchase Date"
 msgstr "Дата покупки"
 
 #: .\digiseller\templates\order_confirmation\order_confirmation.html:332
-#: .\digiseller\templates\order_confirmation\order_sample.html:334
+#: .\digiseller\templates\order_confirmation\order_sample.html:350
 msgid "Activation"
 msgstr "Активация"
 
 #: .\digiseller\templates\order_confirmation\order_confirmation.html:333
-#: .\digiseller\templates\order_confirmation\order_sample.html:335
+#: .\digiseller\templates\order_confirmation\order_sample.html:351
 msgid "Immediately"
 msgstr "Моментально"
 
 #: .\digiseller\templates\order_confirmation\order_confirmation.html:336
-#: .\digiseller\templates\order_confirmation\order_sample.html:338
+#: .\digiseller\templates\order_confirmation\order_sample.html:354
 msgid "Total Paid"
 msgstr "Всего оплачено"
 
 #: .\digiseller\templates\order_confirmation\order_sample.html:258
-#| msgid "Your eSIM is being delivered"
-msgid "Your eSIM is on the way!"
-msgstr "Ваша eSIM уже в пути!"
+msgid "Your eSIM is on the way"
+msgstr "Ваша eSIM уже в пути"
 
-#: .\digiseller\templates\order_confirmation\order_sample.html:262
+#: .\digiseller\templates\order_confirmation\order_sample.html:260
 #, fuzzy, python-format
 #| msgid ""
 #| "\n"
@@ -104,30 +103,22 @@ msgstr "Ваша eSIM уже в пути!"
 msgid "Order %(order_id)s • Completed"
 msgstr "Заказ %(order_id)s • Завершено"
 
-#: .\digiseller\templates\order_confirmation\order_sample.html:286
-msgid "Your eSIM is being delivered"
-msgstr "Ваша eSIM доставляется"
+#: .\digiseller\templates\order_confirmation\order_sample.html:291
+msgid "We have sent your eSIM to the specified email address"
+msgstr "Мы отправили вашу eSIM на указанный адрес электронной почты"
 
-#: .\digiseller\templates\order_confirmation\order_sample.html:289
-msgid ""
-"We've sent your eSIM to your email address. Please check your inbox (and "
-"spam folder) within the next 30 minutes."
-msgstr ""
-"Мы отправили вашу eSIM на ваш адрес электронной почты. Пожалуйста, проверьте "
-"свой почтовый ящик (и папку со спамом) в течение ближайших 30 минут."
+#: .\digiseller\templates\order_confirmation\order_sample.html:292
+msgid "Please check your inbox, including the Spam and Promotions folders, within the next 10 minutes"
+msgstr "Пожалуйста, проверьте свой почтовый ящик, включая папки «Спам» и «Промоакции», в течение ближайших 10 минут"
 
-#: .\digiseller\templates\order_confirmation\order_sample.html:293
-#, python-format
-msgid ""
-"\n"
-"                                If you don't receive it, contact us "
-"immediately on %(telegram_link)s for assistance.\n"
-"                            "
-msgstr ""
-"\n"
-"                                Если вы не получили письмо, немедленно "
-"свяжитесь с нами через %(telegram_link)s для получения помощи.\n"
-"                            "
+
+#: .\digiseller\templates\order_confirmation\order_sample.html:294
+msgid "Didn't receive the email? Don't worry"
+msgstr "Если письмо не пришло — не переживайте"
+
+#: .\digiseller\templates\order_confirmation\order_sample.html:295
+msgid "Contact our support team, and we’ll help you right away"
+msgstr "Свяжитесь с нашей службой поддержки, и мы оперативно поможем вам"
 
 #: .\esim\admin.py:22
 msgid "Personal Info"
@@ -2093,6 +2084,21 @@ msgstr ""
 #: .\venv\djcelery\templates\djcelery\confirm_rate_limit.html:22
 msgid "Rate limit"
 msgstr ""
+
+#~ msgid "Your eSIM is being delivered"
+#~ msgstr "Ваша eSIM доставляется"
+
+#, python-format
+#~ msgid ""
+#~ "\n"
+#~ "                                If you don't receive it, contact us "
+#~ "immediately on %(telegram_link)s for assistance.\n"
+#~ "                            "
+#~ msgstr ""
+#~ "\n"
+#~ "                                Если вы не получили письмо, немедленно "
+#~ "свяжитесь с нами через %(telegram_link)s для получения помощи.\n"
+#~ "                            "
 
 #~ msgid "Thank you for your purchase. Your digital eSIM is ready to use."
 #~ msgstr ""

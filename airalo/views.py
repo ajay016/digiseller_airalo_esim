@@ -40,7 +40,9 @@ logger = logging.getLogger(__name__)  # Optional: use logger if configured
 
 
 # Constants
-AIRALO_BASE_API_URL = "https://sandbox-partners-api.airalo.com"
+# AIRALO_BASE_API_URL = "https://sandbox-partners-api.airalo.com"
+AIRALO_BASE_API_URL = "https://partners-api.airalo.com"
+# AIRALO_BASE_API_URL = "https://imdb.com"
 
 TOKEN_URL = f"{AIRALO_BASE_API_URL}/v2/token"
 PACKAGES_URL = f"{AIRALO_BASE_API_URL}/v2/packages?limit=200"
@@ -366,7 +368,7 @@ def purchase_airalo_sim(digiseller_order_id):
 
         order.airalo_order = airalo_order
         order.status = "completed"
-        order.digiseller_transaction_status = 5
+        order.digiseller_transaction_status = 2
         order.save(update_fields=["airalo_order", "status", "digiseller_transaction_status"])
         
         # call the API function here

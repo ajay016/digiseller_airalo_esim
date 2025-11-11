@@ -193,65 +193,65 @@
         <div class="col-12">
             <div class="card">
                 <div class="card-header">
-                    <h1>{{ digiseller_product.name_goods }}</h1>
+                    <h1>{{ ggseller_product.name_goods }}</h1>
                 </div>
-                <form id="variant-assign-form" class="form theme-form dark-inputs" method="POST" action="{% url 'update_variants' %}">
+                <form id="variant-assign-form" class="form theme-form dark-inputs" method="POST" action="{% url 'update_ggseller_variants' %}">
                     {% csrf_token %}
                     <div class="card-body">
                         <div class="row">
                             <div class="col-md-3 col-6">
                                 <div class="mb-3">
                                 <label class="form-label" for="product-id">Product ID</label><span class="required-fields-mark">*</span>
-                                <input class="form-control btn-pill" id="product-id" name="product_id" value="{{ digiseller_product.id_goods }}" type="text" disabled>
+                                <input class="form-control btn-pill" id="product-id" name="product_id" value="{{ ggseller_product.id_goods }}" type="text" disabled>
                                 </div>
                             </div>
 
                             <div class="col-md-3 col-6">
                                 <div class="mb-3">
                                 <label class="form-label" for="name-goods">Name of Product</label><span class="required-fields-mark">*</span>
-                                <input class="form-control btn-pill" id="name-goods" name="name_goods" type="text" value="{{ digiseller_product.name_goods }}" disabled>
+                                <input class="form-control btn-pill" id="name-goods" name="name_goods" type="text" value="{{ ggseller_product.name_goods }}" disabled>
                                 </div>
                             </div>
 
                             <div class="col-md-3 col-6">
                                 <div class="mb-3">
                                 <label class="form-label" for="price">Price</label><span class="required-fields-mark">*</span>
-                                <input class="form-control btn-pill" id="price" name="price" type="text" value="{{ digiseller_product.price }}" disabled>
+                                <input class="form-control btn-pill" id="price" name="price" type="text" value="{{ ggseller_product.price }}" disabled>
                                 </div>
                             </div>
 
                             <div class="col-md-3 col-6">
                                 <div class="mb-3">
                                 <label class="form-label" for="currency">Currency</label><span class="required-fields-mark">*</span>
-                                <input class="form-control btn-pill" id="currency" name="currency" type="text" value="{{ digiseller_product.currency }}" disabled>
+                                <input class="form-control btn-pill" id="currency" name="currency" type="text" value="{{ ggseller_product.currency }}" disabled>
                                 </div>
                             </div>
 
                             <div class="col-md-3 col-6">
                                 <div class="mb-3">
                                 <label class="form-label" for="cnt-sell">Number of Sales</label><span class="required-fields-mark">*</span>
-                                <input class="form-control btn-pill" id="cnt-sell" name="cnt_sell" type="text" value="{{ digiseller_product.cnt_sell }}" disabled>
+                                <input class="form-control btn-pill" id="cnt-sell" name="cnt_sell" type="text" value="{{ ggseller_product.cnt_sell }}" disabled>
                                 </div>
                             </div>
 
                             <div class="col-md-3 col-6">
                                 <div class="mb-3">
                                 <label class="form-label" for="price-usd">Price in USD</label>
-                                <input class="form-control btn-pill" id="price-usd" name="price_usd" type="text" value="{{ digiseller_product.price_usd }}" disabled>
+                                <input class="form-control btn-pill" id="price-usd" name="price_usd" type="text" value="{{ ggseller_product.price_usd }}" disabled>
                                 </div>
                             </div>
 
                             <div class="col-md-3 col-6">
                                 <div class="mb-3">
                                 <label class="form-label" for="price-rur">Price in RUR</label>
-                                <input class="form-control btn-pill" id="price-rur" name="price_rur" type="text" value="{{ digiseller_product.price_rur }}" disabled>
+                                <input class="form-control btn-pill" id="price-rur" name="price_rur" type="text" value="{{ ggseller_product.price_rur }}" disabled>
                                 </div>
                             </div>
 
                             <div class="col-md-3 col-6">
                                 <div class="mb-3">
                                 <label class="form-label" for="price-eur">Price in EUR</label>
-                                <input class="form-control btn-pill" id="price-eur" name="price_eur" type="text" value="{{ digiseller_product.price_eur }}" disabled>
+                                <input class="form-control btn-pill" id="price-eur" name="price_eur" type="text" value="{{ ggseller_product.price_eur }}" disabled>
                                 </div>
                             </div>
 
@@ -265,7 +265,7 @@
                                     rows="1" 
                                     style="resize: none; min-height: 100px; border-radius: 20px;"
                                     disabled
-                                >{{ digiseller_product.info_goods }}</textarea>
+                                >{{ ggseller_product.info_goods }}</textarea>
                                 </div>
                             </div>
 
@@ -279,13 +279,13 @@
                                     rows="1" 
                                     style="resize: none; min-height: 100px; border-radius: 20px;"
                                     disabled
-                                >{{ digiseller_product.add_info }}</textarea>
+                                >{{ ggseller_product.add_info }}</textarea>
                                 </div>
                             </div>
                         </div>
 
                         <div class="mt-6" style="margin-top: 60px;">
-                            <h3>Variants of "{{ digiseller_product.name_goods }}"</h3>
+                            <h3>Variants of "{{ ggseller_product.name_goods }}"</h3>
                         </div>
 
                         <div class="row">
@@ -726,3 +726,4 @@
     });
 </script>
 {% endblock scriptcontent %}
+ 

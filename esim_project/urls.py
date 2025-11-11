@@ -24,6 +24,7 @@ urlpatterns = [
     path('', include('esim.urls')),
     path('airalo/', include('airalo.urls')),
     path('digiseller/', include('digiseller.urls')),
+    path('ggsel/', include('ggsel.urls')),
     path('api-auth/', include('rest_framework.urls'))
 ]
 

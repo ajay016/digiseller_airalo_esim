@@ -183,8 +183,8 @@
                                     </button>
                                 </div>
                                 <div class="p-2">
-                                    <button id="sync-digiseller-ggesel-btn" class="btn btn-danger mt-auto align-self-start px-4" style="border-radius: 20px;" data-market-id="1271">
-                                        Sync Ggesel Products
+                                    <button id="sync-ggesel-btn" class="btn btn-danger mt-auto align-self-start px-4" style="border-radius: 20px;" data-market-id="1271">
+                                        Sync Ggsel Products
                                     </button>
                                 </div>
                             </div>
@@ -317,10 +317,10 @@
         });
 
         // Digiseller Ggesel Products sync
-        $('#sync-digiseller-ggesel-btn').on('click', function () {
+        $('#sync-ggesel-btn').on('click', function () {
             const ownerId = $(this).data('market-id');
             handleSyncRequest({
-                url: "{% url 'sync_esim_products' %}",
+                url: "{% url 'sync_ggsel_products' %}",
                 method: "POST",
                 body: { owner_id: ownerId },
                 sourceLabel: "GGesel Digiseller Data"
