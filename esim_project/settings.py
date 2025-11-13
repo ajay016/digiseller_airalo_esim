@@ -43,7 +43,7 @@ SECRET_KEY = config("DJANGO_SECRET_KEY")
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['37.220.81.77']
+ALLOWED_HOSTS = ['37.220.81.77', '127.0.0.1']
 
 AUTH_USER_MODEL = 'esim.User'
 

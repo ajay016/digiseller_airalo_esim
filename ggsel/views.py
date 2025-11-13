@@ -594,72 +594,159 @@ class SkipWebhook(Exception):
 #     })
 
 
+# @require_GET
+# def ggseller_deliver(request):
+#     # 1️⃣ Handle language
+#     lang = request.GET.get('lang', 'ru')
+#     if lang not in dict(settings.LANGUAGES):
+#         lang = 'ru'
+#     translation.activate(lang)
+#     request.LANGUAGE_CODE = lang
+
+#     # 2️⃣ Extract GET parameters
+#     id_i = request.GET.get("id_i")  # order ID
+#     id_d = request.GET.get("id_d")
+#     amount = request.GET.get("amount")
+#     currency = request.GET.get("curr")
+#     date = request.GET.get("date")
+#     email = request.GET.get("email")
+#     sha256 = request.GET.get("sha256")
+#     ip = request.GET.get("ip")
+#     is_my_product = request.GET.get("isMyProduct")
+
+#     print("🔍 Received parameters:", {
+#         "id_i": id_i,
+#         "id_d": id_d,
+#         "amount": amount,
+#         "currency": currency,
+#         "date": date,
+#         "email": email,
+#         "sha256": sha256,
+#         "ip": ip,
+#         "isMyProduct": is_my_product,
+#     })
+
+#     # 3️⃣ Validate required params
+#     if not id_i or not id_d:
+#         return HttpResponseBadRequest("Missing required parameters: id_i or id_d")
+
+#     order_id = int(id_i)
+
+#     # 4️⃣ Save failed order record if not exists
+#     failed_order, created = GgselFailedOrder.objects.get_or_create(
+#         order_id=order_id,
+#         defaults={"status": "pending"}
+#     )
+
+#     # 5️⃣ Handle webhook
+#     try:
+#         ggsel_order = handle_ggseller_webhook(request.GET, order_id)
+#     except SkipWebhook as exc:
+#         failed_order.status = "skipped"
+#         failed_order.save(update_fields=["status"])
+#         return HttpResponse(f"Order ignored: {exc}", status=200)
+#     except Exception as exc:
+#         failed_order.status = "error"
+#         failed_order.save(update_fields=["status"])
+#         return HttpResponse(f"Server error: {exc}", status=500)
+
+#     failed_order.status = "success"
+#     failed_order.save(update_fields=["status"])
+
+#     # 6️⃣ Extract variant & validity
+#     variant = ggsel_order.variant
+#     package = variant.airalo_package if variant else None
+
+#     validity = None
+#     if package and package.package_id:
+#         for part in package.package_id.split("-"):
+#             if "day" in part.lower():
+#                 try:
+#                     number = int(part.lower().replace("days", "").replace("day", ""))
+#                     validity = f"{number} Days"
+#                     break
+#                 except ValueError:
+#                     pass
+
+#     # 7️⃣ Load ads
+#     purchase_discount_ad = PurchaseDiscountAd.objects.filter(is_active=True).last()
+#     travel_guide_ad = TravelGuideAd.objects.filter(is_active=True).last()
+#     selected_product_ad = SelectedProductAd.objects.filter(is_active=True).last()
+#     social_media_ad = SocialMediaAd.objects.filter(is_active=True).last()
+#     sponsor_ad = SponsorAd.objects.filter(is_active=True).last()
+#     product_ad_items = selected_product_ad.items.all() if selected_product_ad else []
+
+#     # 8️⃣ Build context
+#     context = {
+#         'current_lang': lang,
+#         'available_langs': settings.LANGUAGES,
+#         "order_id": ggsel_order.order_id,
+#         "product": ggsel_order.product,
+#         "variant": ggsel_order.variant.text,
+#         "quantity": ggsel_order.quantity,
+#         "purchase_amount": amount or ggsel_order.purchase_amount,
+#         "purchase_currency": currency or ggsel_order.purchase_currency,
+#         "purchase_date": date or ggsel_order.purchase_date,
+#         "email": email,
+#         "ip": ip,
+#         "sha256": sha256,
+#         "validity": validity,
+#         "is_my_product": is_my_product,
+#         "purchase_discount_ad": purchase_discount_ad,
+#         "travel_guide_ad": travel_guide_ad,
+#         "selected_product_ad": selected_product_ad,
+#         "social_media_ad": social_media_ad,
+#         "sponsor_ad": sponsor_ad,
+#         'product_ad_items': product_ad_items
+#     }
+
+#     return render(request, "order_confirmation/order_confirmation.html", context)
+
+
 @require_GET
 def ggseller_deliver(request):
-    # 1️⃣ Handle language
     lang = request.GET.get('lang', 'ru')
     if lang not in dict(settings.LANGUAGES):
         lang = 'ru'
+
+    # 2) Activate it
     translation.activate(lang)
     request.LANGUAGE_CODE = lang
+    
+    print("DEBUG: GET params =", dict(request.GET))
+    
+    lang = request.GET.get('lang', 'ru')
+    print("DEBUG: requested lang =", lang)
+    
+    code = request.GET.get("uniquecode")
+    print('---------unique code--------', code)
+    if not code:
+        return HttpResponseBadRequest("Missing code")
+    
+    # Save failed order record early
+    if not GgselFailedOrder.objects.filter(unique_code=code).exists():
+        failed_order, created = GgselFailedOrder.objects.get_or_create(
+            unique_code=code,
+            defaults={"status": "pending"}
+        )
 
-    # 2️⃣ Extract GET parameters
-    id_i = request.GET.get("id_i")  # order ID
-    id_d = request.GET.get("id_d")
-    amount = request.GET.get("amount")
-    currency = request.GET.get("curr")
-    date = request.GET.get("date")
-    email = request.GET.get("email")
-    sha256 = request.GET.get("sha256")
-    ip = request.GET.get("ip")
-    is_my_product = request.GET.get("isMyProduct")
-
-    print("🔍 Received parameters:", {
-        "id_i": id_i,
-        "id_d": id_d,
-        "amount": amount,
-        "currency": currency,
-        "date": date,
-        "email": email,
-        "sha256": sha256,
-        "ip": ip,
-        "isMyProduct": is_my_product,
-    })
-
-    # 3️⃣ Validate required params
-    if not id_i or not id_d:
-        return HttpResponseBadRequest("Missing required parameters: id_i or id_d")
-
-    order_id = int(id_i)
-
-    # 4️⃣ Save failed order record if not exists
-    failed_order, created = GgselFailedOrder.objects.get_or_create(
-        order_id=order_id,
-        defaults={"status": "pending"}
-    )
-
-    # 5️⃣ Handle webhook
     try:
-        ggsel_order = handle_ggseller_webhook(request.GET, order_id)
+        digiseller_order = verify_unique_code_and_get_info(code)
     except SkipWebhook as exc:
-        failed_order.status = "skipped"
-        failed_order.save(update_fields=["status"])
+        GgselFailedOrder.objects.filter(unique_code=code).update(status="skipped")
         return HttpResponse(f"Order ignored: {exc}", status=200)
     except Exception as exc:
-        failed_order.status = "error"
-        failed_order.save(update_fields=["status"])
+        GgselFailedOrder.objects.filter(unique_code=code).update(status="error")
         return HttpResponse(f"Server error: {exc}", status=500)
-
-    failed_order.status = "success"
-    failed_order.save(update_fields=["status"])
-
-    # 6️⃣ Extract variant & validity
-    variant = ggsel_order.variant
+    
+    variant = digiseller_order.variant
     package = variant.airalo_package if variant else None
-
+    
+    # Extract validity from package_id
     validity = None
     if package and package.package_id:
-        for part in package.package_id.split("-"):
+        parts = package.package_id.split("-")
+        for part in parts:
             if "day" in part.lower():
                 try:
                     number = int(part.lower().replace("days", "").replace("day", ""))
@@ -667,31 +754,29 @@ def ggseller_deliver(request):
                     break
                 except ValueError:
                     pass
-
-    # 7️⃣ Load ads
+                
+    # Get last active instances of all ad models
     purchase_discount_ad = PurchaseDiscountAd.objects.filter(is_active=True).last()
     travel_guide_ad = TravelGuideAd.objects.filter(is_active=True).last()
     selected_product_ad = SelectedProductAd.objects.filter(is_active=True).last()
     social_media_ad = SocialMediaAd.objects.filter(is_active=True).last()
     sponsor_ad = SponsorAd.objects.filter(is_active=True).last()
+    
     product_ad_items = selected_product_ad.items.all() if selected_product_ad else []
 
-    # 8️⃣ Build context
     context = {
         'current_lang': lang,
         'available_langs': settings.LANGUAGES,
-        "order_id": ggsel_order.order_id,
-        "product": ggsel_order.product,
-        "variant": ggsel_order.variant.text,
-        "quantity": ggsel_order.quantity,
-        "purchase_amount": amount or ggsel_order.purchase_amount,
-        "purchase_currency": currency or ggsel_order.purchase_currency,
-        "purchase_date": date or ggsel_order.purchase_date,
-        "email": email,
-        "ip": ip,
-        "sha256": sha256,
+        "order_id": digiseller_order.order_id,
+        "product": digiseller_order.product,
+        "variant": digiseller_order.variant.text,
+        "quantity": digiseller_order.quantity,
+        "purchase_amount": digiseller_order.purchase_amount,
+        "purchase_currency": digiseller_order.purchase_currency,
+        "purchase_date": digiseller_order.purchase_date,
+        "unique_code": digiseller_order.unique_code,
         "validity": validity,
-        "is_my_product": is_my_product,
+        
         "purchase_discount_ad": purchase_discount_ad,
         "travel_guide_ad": travel_guide_ad,
         "selected_product_ad": selected_product_ad,
@@ -705,7 +790,7 @@ def ggseller_deliver(request):
 
 def verify_unique_code_and_get_info(code: str) -> Dict:
     token = get_ggsel_token()
-    url = f"https://api.digiseller.com/api/purchases/unique-code/{code}?token={token}"
+    url = f"{GGSEL_BASE_API}/api_sellers/api/purchases/unique-code/{code}?token={token}"
     resp = requests.get(url, timeout=10)
     resp.raise_for_status()
 
@@ -777,13 +862,13 @@ def find_matching_variants(
     return matches
 
 
-def handle_ggseller_webhook(data: dict, order_id: int):
+def handle_ggseller_webhook(data: dict, code):
     """
     Processes a Ggsel order webhook and creates or updates the GgselOrder entry.
     Raises SkipWebhook if the event should be ignored.
     """
-    product_id_str = data.get("id_d")
-    product_id = int(product_id_str)
+    order_id   = data.get("inv")
+    product_id = data.get("id_goods")
     
 
     product_qs = GgselProduct.objects.filter(id_goods=product_id)
