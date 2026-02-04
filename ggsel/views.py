@@ -48,10 +48,10 @@ logger = logging.getLogger(__name__)
 
 # API Endpoints
 GGSEL_TOKEN_CACHE_KEY = 'ggsel_token'
-TOKEN_API_URL = "https://seller.ggsel.net/api_sellers/api/apilogin"
-SELLER_GOODS_URL = "https://seller.ggsel.net/api_sellers/api/seller-goods"
-PRODUCT_DETAIL_URL = "https://seller.ggsel.net/api_sellers/api/products/{product_id}/data"
-GGSEL_BASE_API = "https://seller.ggsel.net"
+TOKEN_API_URL = "https://seller.ggsel.com/api_sellers/api/apilogin"
+SELLER_GOODS_URL = "https://seller.ggsel.com/api_sellers/api/seller-goods"
+PRODUCT_DETAIL_URL = "https://seller.ggsel.com/api_sellers/api/products/{product_id}/data"
+GGSEL_BASE_API = "https://seller.ggsel.com"
 
 SELLER_ID = settings.GGSEL_SELLER_ID
 API_KEY = settings.GGSEL_API_KEY
