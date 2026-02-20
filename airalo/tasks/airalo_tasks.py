@@ -36,7 +36,7 @@ def purchase_airalo_sim(self, digiseller_order_id):
         "description":  order.order_id,
         "brand_settings_name": "",
         "to_email": order.buyer_email,
-        "sharing_option[]": "link",
+        "sharing_option[]": "pdf",
         "copy_address[]": "kinoblitze@gmail.com"
     }
 
@@ -160,7 +160,7 @@ def purchase_airalo_sim_for_ggsel(self, digiseller_order_id):
         "description":  order.order_id,
         "brand_settings_name": "",
         "to_email": order.buyer_email,
-        "sharing_option[]": "link",
+        "sharing_option[]": "pdf",
         "copy_address[]": "kinoblitze@gmail.com"
     }
 
