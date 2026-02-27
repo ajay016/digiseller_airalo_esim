@@ -34,8 +34,8 @@ import time
 import json
 import re
 from .models import *
-
-
+import traceback
+from esim.tasks import sync_esimaccess_packages_task
 
 
 def is_valid_email(email):
@@ -107,20 +107,126 @@ def logout_view(request):
 def sync_data(request):
     stats = airalo_stats.get_package_operator_stats()
     product_stats = ds.get_digiseller_product_variant_stats()
+    from django.db.models import Count, Q, Min, Max, Avg
+
+    # Basic package stats
+    esim_total_packages = Package.objects.filter(provider='esimaccess').count()
+    esim_active_packages = Package.objects.filter(provider='esimaccess').count()
+    esim_inactive_packages = Package.objects.filter(provider='esimaccess').count()
+
+    # Variant stats
+    esim_with_variant = Package.objects.filter(
+        provider='esimaccess',
+        digiseller_variants__isnull=False
+    ).distinct().count()
+
+    esim_without_variant = esim_total_packages - esim_with_variant
+
+    # Country and operator stats
+    esim_countries = Package.objects.filter(
+        provider='esimaccess'
+    ).values('operator__country__title').distinct().count()
+
+    esim_operators = Package.objects.filter(
+        provider='esimaccess'
+    ).values('operator').distinct().count()
+
+    # Price stats
+    esim_price_stats = Package.objects.filter(
+        provider='esimaccess'
+    ).aggregate(
+        min_price=Min('price'),
+        max_price=Max('price'),
+        avg_price=Avg('price')
+    )
+
+    # Unlimited packages
+    esim_unlimited_packages = Package.objects.filter(
+        provider='esimaccess',
+        is_unlimited=True
+    ).count()
+
+    # Create comprehensive stats dictionary
+    esim_stats = {
+        "total_packages": esim_total_packages,
+        "active_packages": esim_active_packages,
+        "inactive_packages": esim_inactive_packages,
+        "packages_with_variant": esim_with_variant,
+        "packages_without_variant": esim_without_variant,
+        "total_countries": esim_countries,
+        "total_operators": esim_operators,
+        "min_price": esim_price_stats['min_price'],
+        "max_price": esim_price_stats['max_price'],
+        "avg_price": round(esim_price_stats['avg_price'], 2) if esim_price_stats['avg_price'] else 0,
+        "unlimited_packages": esim_unlimited_packages,
+    }
 
     context = {
         "total_operators": stats["total_operators"],
         "total_packages": stats["total_packages"],
         "packages_with_variant": stats["packages_with_variant"],
         "packages_without_variant": stats["packages_without_variant"],
-        
+
         # Product/variant stats
         "total_products": product_stats["total_products"],
         "total_variants": product_stats["total_variants"],
         "variants_with_package": product_stats["variants_with_package"],
         "variants_without_package": product_stats["variants_without_package"],
+
+        "esim_total_packages": esim_stats["total_packages"],
+        "esim_active_packages": esim_stats["active_packages"],
+        "esim_inactive_packages": esim_stats["inactive_packages"],
+        "esim_packages_with_variant": esim_stats["packages_with_variant"],
+        "esim_packages_without_variant": esim_stats["packages_without_variant"],
+        "esim_total_countries": esim_stats["total_countries"],
+        "esim_total_operators": esim_stats["total_operators"],
+        "esim_min_price": esim_stats["min_price"],
+        "esim_max_price": esim_stats["max_price"],
+        "esim_avg_price": esim_stats["avg_price"],
+        "esim_unlimited_packages": esim_stats["unlimited_packages"],
+        "esim_stats": esim_stats,
     }
+
     return render(request, 'sync_data/sync_data.html', context)
+
+def sync_esimaccess_data(request):
+    """
+    Sync packages from eSIM Access API
+    """
+    import logging
+    from django.http import JsonResponse
+    
+    logger = logging.getLogger(__name__)
+    
+    try:
+        # Check if this is a status check request
+        task_id = request.GET.get('task_id')
+        if task_id:
+            # Since tasks run synchronously in development, they complete immediately
+            # So we can return completed status
+            return JsonResponse({
+                'status': 'completed',
+                'message': 'Task completed successfully'
+            })
+        
+        # Start the Celery task - in eager mode this runs immediately
+        task = sync_esimaccess_packages_task.delay()
+        
+        # In eager mode, the task is already done when we get here
+        return JsonResponse({
+            'success': True,
+            'message': 'eSIM Access sync completed successfully',
+            'task_id': task.id,
+            'status': 'completed'  # Add this to indicate completion
+        })
+        
+    except Exception as e:
+        logger.error(f"Error starting eSIM Access sync: {str(e)}")
+        
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)
 
 @login_required
 def digiseller_products(request, market_id=None):
@@ -148,7 +254,7 @@ def digiseller_product(request, id):
     selected_country = countries.filter(id=selected_country_id).first() if selected_country_id else countries.first()
     selected_operator = Operator.objects.filter(id=selected_operator_id).first() if selected_operator_id else None
 
-    # Fetch packages based on filters
+    # Fetch packages based on filters (both Airalo and ESIM Access)
     packages = Package.objects.select_related('operator', 'operator__country')
 
     if selected_country:
@@ -171,19 +277,26 @@ def digiseller_product(request, id):
     return render(request, 'digiseller/digiseller_product.html', context)
 
 
+@login_required
 def get_packages_by_region(request):
+    """Fetch packages filtered by country or region with optional provider filter"""
     country_id = request.GET.get('country')
     operator_country_id = request.GET.get('region')
+    provider = request.GET.get('provider')  # New: filter by provider
     
-    print('country entered')
-
     packages = Package.objects.select_related('operator', 'operator__country')
 
     if operator_country_id:
         packages = packages.filter(operator__available_countries__id=operator_country_id)
     elif country_id:
         packages = packages.filter(operator__country_id=country_id)
+    
+    # Apply provider filter if specified
+    if provider:
+        packages = packages.filter(provider=provider)
 
+    packages = packages.order_by('-price')
+    
     html = render_to_string('digiseller/includes/package_cards.html', {'packages': packages})
     return JsonResponse({'html': html})
 

@@ -34,6 +34,12 @@ DIGISELLER_API_KEY = config("DIGISELLER_API_KEY")
 GGSEL_SELLER_ID = config("GGSEL_SELLER_ID")
 GGSEL_API_KEY = config("GGSEL_API_KEY")
 
+
+
+
+ESIMACCESS_API_KEY = config('ESIMACCESS_API_KEY', '')
+ESIMACCESS_API_SECRET = config('ESIMACCESS_API_SECRET', '')
+
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
@@ -207,3 +213,19 @@ USE_L10N = True
 USE_TZ = True
 
 LOCALE_PATHS = [BASE_DIR / 'locale']
+
+AIRALO_FULFILLMENT_MODE = "voucher"  # "voucher" or "order"
+
+
+# Email configuration
+EMAIL_BACKEND = config("EMAIL_BACKEND", default="django.core.mail.backends.smtp.EmailBackend")
+
+EMAIL_HOST = config("EMAIL_HOST")
+EMAIL_PORT = config("EMAIL_PORT", cast=int, default=465)
+EMAIL_USE_SSL = config("EMAIL_USE_SSL", cast=bool, default=True)
+EMAIL_USE_TLS = config("EMAIL_USE_TLS", cast=bool, default=False)
+
+EMAIL_HOST_USER = config("EMAIL_HOST_USER")
+EMAIL_HOST_PASSWORD = config("EMAIL_HOST_PASSWORD")
+
+DEFAULT_FROM_EMAIL = config("DEFAULT_FROM_EMAIL", default=EMAIL_HOST_USER)

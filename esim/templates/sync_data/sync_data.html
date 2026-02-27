@@ -191,6 +191,89 @@
                         </div>
                     </div>
                 </div>
+
+
+                   <div class="col-md-6">
+    <div class="card border-0 shadow-sm h-100" style="background: linear-gradient(135deg, rgba(40, 167, 69, 0.1), rgba(200, 230, 200, 0.2));">
+        <div class="card-body p-4 d-flex">
+            <!-- Data Section (40%) -->
+            <div class="pe-4" style="flex-basis: 40%;">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h3 class="card-title mb-0 text-success">ESIM Access</h3>
+                    <span class="badge bg-success stats-badge">Provider</span>
+                </div>
+                
+                <div class="mb-4">
+                    <div class="d-flex justify-content-between py-2 border-bottom">
+                        <span class="text-muted">Total Packages:</span>
+                        <span class="fw-bold">{{ esim_total_packages }}</span>
+                    </div>
+                    <div class="d-flex justify-content-between py-2 border-bottom">
+                        <span class="text-muted">Active Packages:</span>
+                        <span class="fw-bold text-success">{{ esim_active_packages }}</span>
+                    </div>
+                    <div class="d-flex justify-content-between py-2 border-bottom">
+                        <span class="text-muted">With Variants:</span>
+                        <span class="fw-bold text-success">{{ esim_packages_with_variant }}</span>
+                    </div>
+                    <div class="d-flex justify-content-between py-2">
+                        <span class="text-muted">Without Variants:</span>
+                        <span class="fw-bold text-warning">{{ esim_packages_without_variant }}</span>
+                    </div>
+                    <div class="d-flex justify-content-between py-2 border-top mt-2">
+                        <span class="text-muted">Countries:</span>
+                        <span class="fw-bold">{{ esim_total_countries|default:"0" }}</span>
+                    </div>
+                    <div class="d-flex justify-content-between py-2">
+                        <span class="text-muted">Operators:</span>
+                        <span class="fw-bold">{{ esim_total_operators|default:"0" }}</span>
+                    </div>
+                </div>
+                
+                <button id="sync-esimaccess-btn" class="btn btn-primary mt-auto align-self-start px-4" style="border-radius: 20px;">
+                    <i class="bi bi-arrow-repeat me-2"></i>Sync ESIM Access Data
+                </button>
+            </div>
+            
+            <!-- Visual Section (60%) -->
+            <div class="d-none d-md-flex flex-column justify-content-center align-items-center" style="flex-basis: 60%;">
+                <div class="position-relative w-100 h-100">
+                    
+                    <!-- Data Visualization -->
+                    <div class="position-absolute" style="top: 20%; left: 30%; width: 120px; height: 120px;">
+                        <div class="rounded-circle bg-success bg-opacity-10 d-flex flex-column justify-content-center align-items-center h-100">
+                            <span class="fs-4 fw-bold text-success">
+                                {% widthratio esim_packages_with_variant esim_total_packages 100 %}%
+                            </span>
+                            <small class="text-muted">Synced</small>
+                        </div>
+                    </div>
+                    
+                    <!-- Price Range Visualization -->
+                    <div class="position-absolute" style="top: 10%; right: 5%;">
+                        <div class="bg-white p-2 rounded shadow-sm">
+                            <small class="text-muted d-block">Price Range</small>
+                            <span class="fw-bold text-success">${{ esim_min_price|default:"0" }}</span>
+                            <span class="mx-1">-</span>
+                            <span class="fw-bold text-success">${{ esim_max_price|default:"0" }}</span>
+                        </div>
+                    </div>
+                    
+                    <!-- Network Nodes Visualization -->
+                    <div class="position-absolute" style="bottom: 10%; left: 20%;">
+                        <div class="d-flex">
+                            <div class="rounded-circle bg-success bg-opacity-25 mx-1" style="width: 12px; height: 12px;"></div>
+                            <div class="rounded-circle bg-success bg-opacity-50 mx-1" style="width: 16px; height: 16px;"></div>
+                            <div class="rounded-circle bg-success mx-1" style="width: 20px; height: 20px;"></div>
+                        </div>
+                    </div>
+                    
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+                </div>
             </div>
         </div>
     </div>
@@ -250,7 +333,56 @@
     $(document).ready(function () {
         const $syncModal = new bootstrap.Modal($('#syncModal')[0]);
         const $retryBtn = $('#retry-sync');
-        let lastSyncRequest = { url: null, method: 'GET', body: null };
+        let lastSyncRequest = { url: null, method: 'GET', body: null, sourceLabel: null };
+        let pollInterval = null;
+
+        function checkTaskStatus(taskId, sourceLabel) {
+            // Clear any existing interval
+            if (pollInterval) {
+                clearInterval(pollInterval);
+            }
+
+            // Poll for task status every 2 seconds
+            pollInterval = setInterval(() => {
+                fetch(`{% url 'sync_esimaccess_data' %}?task_id=${taskId}`, {
+                    method: 'GET',
+                    headers: {
+                        'X-CSRFToken': '{{ csrf_token }}',
+                        'Content-Type': 'application/json'
+                    },
+                    credentials: 'same-origin'
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'completed') {
+                        // Task completed successfully
+                        clearInterval(pollInterval);
+                        $('#sync-loading').addClass('d-none');
+                        $('#sync-success').removeClass('d-none');
+                        
+                        // Optionally update the page data
+                        setTimeout(() => {
+                            location.reload(); // Reload to show updated stats
+                        }, 2000);
+                    } 
+                    else if (data.status === 'failed') {
+                        // Task failed
+                        clearInterval(pollInterval);
+                        $('#sync-loading').addClass('d-none');
+                        $('#sync-error').removeClass('d-none');
+                        $('#error-message').text(data.error || 'Sync failed');
+                    }
+                    // If status is 'pending', continue polling
+                })
+                .catch(error => {
+                    console.error('Error checking task status:', error);
+                    clearInterval(pollInterval);
+                    $('#sync-loading').addClass('d-none');
+                    $('#sync-error').removeClass('d-none');
+                    $('#error-message').text('Error checking sync status');
+                });
+            }, 2000);
+        }
 
         function handleSyncRequest({ url, method = 'GET', body = null, sourceLabel = 'Data' }) {
             lastSyncRequest = { url, method, body, sourceLabel };
@@ -284,8 +416,15 @@
                     throw new Error(msg);
                 }
 
-                $('#sync-loading').addClass('d-none');
-                $('#sync-success').removeClass('d-none');
+                // Check if this is an async task response (has task_id)
+                if (data.task_id) {
+                    // Start polling for task status
+                    checkTaskStatus(data.task_id, sourceLabel);
+                } else {
+                    // Regular sync completed
+                    $('#sync-loading').addClass('d-none');
+                    $('#sync-success').removeClass('d-none');
+                }
             })
             .catch(error => {
                 $('#sync-loading').addClass('d-none');
@@ -295,7 +434,6 @@
             });
         }
 
-        // Airalo sync (GET)
         // Airalo sync
         $('#sync-airalo-btn').on('click', function () {
             handleSyncRequest({
@@ -305,7 +443,16 @@
             });
         });
 
-        // Digiseller Plati  productsync
+        // ESIM Access sync
+        $('#sync-esimaccess-btn').on('click', function () {
+            handleSyncRequest({
+                url: "{% url 'sync_esimaccess_data' %}",
+                method: "GET",
+                sourceLabel: "ESIM Access Data"
+            });
+        });
+
+        // Digiseller Plati products sync
         $('#sync-digiseller-btn').on('click', function () {
             const ownerId = $(this).data('market-id');
             handleSyncRequest({

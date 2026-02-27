@@ -296,7 +296,8 @@
                                     <div class="variant-field" style="flex: 0 0 120px;">Modify Value</div>
                                     <div class="variant-field" style="flex: 0 0 150px;">Default Value</div>
                                     <div class="variant-field" style="flex: 0 0 120px;">Modify Type</div>
-                                    <div class="variant-field" style="flex: 1 0 150px;">Airalo Package</div>
+                                    <div class="variant-field" style="flex: 1 0 150px;">Package</div>
+                                    
                                     <div class="variant-field" style="flex: 0 0 120px;">View Packages</div>
                                 </div>
                                 
@@ -369,6 +370,7 @@
 
 
 <!--Select Pacakge modal-->
+<!--Select Pacakge modal-->
 <div class="modal fade bd-example-modal-xl" id="editModal" tabindex="-1" role="dialog" aria-labelledby="editModal" aria-hidden="true">
     <div class="modal-dialog modal-xl" role="document">
         <div class="modal-content">
@@ -413,11 +415,19 @@
                                         <div class="col-md-6 col-lg-4">
                                             <div class="card border-0 shadow-sm h-100"
                                                 style="background: linear-gradient(135deg, rgba(100, 179, 244, 0.08), rgba(194, 229, 255, 0.15));">
-                                                <div class="card-header bg-transparent border-0">
+                                                <div class="card-header bg-transparent border-0 d-flex justify-content-between align-items-center">
                                                     <h5 class="mb-0 text-primary">
                                                         <i class="fas fa-network-wired me-2"></i>
                                                         {{ package.operator.title }}
                                                     </h5>
+                                                    <!-- Provider badge -->
+                                                    <span class="badge {% if package.provider == 'airalo' %}bg-info{% else %}bg-success{% endif %}">
+                                                        {% if package.provider == 'airalo' %}
+                                                            <i class="fas fa-plane me-1"></i>Airalo
+                                                        {% else %}
+                                                            <i class="fas fa-sim me-1"></i>eSIM Access
+                                                        {% endif %}
+                                                    </span>
                                                 </div>
                                                 <div class="card-body">
                                                     <div class="package-item mb-3 p-3 rounded" style="background: rgba(255,255,255,0.7);">
@@ -440,7 +450,10 @@
                                                     </div>
                                                 </div>
                                                 <div class="card-footer bg-transparent border-0">
-                                                    <button type="button" class="btn btn-outline-primary w-100 select-package-btn">
+                                                    <button type="button" class="btn btn-outline-primary w-100 select-package-btn"
+                                                            data-package-id="{{ package.id }}"
+                                                            data-package-title="{{ package.title }}"
+                                                            data-provider="{{ package.provider }}">
                                                         Select Package
                                                     </button>
                                                 </div>
@@ -468,6 +481,7 @@
         </div>
     </div>
 </div>
+<!--Select Package modal-->
 <!--Select Package modal-->
 
 <!-- Success Modal -->

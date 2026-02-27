@@ -110,6 +110,14 @@ class GgselOrder(models.Model):
     airalo_order      = models.OneToOneField(
                             AiraloOrder, on_delete=models.SET_NULL,
                             null=True, blank=True, related_name='ggsel_order')
+    
+    voucher_order = models.OneToOneField(
+        'esim.AiraloVoucherOrder',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='ggsel_order'
+    )
 
     # Cart & tracking
     cart_uid              = models.CharField(max_length=100, blank=True, null=True)

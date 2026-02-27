@@ -1,6 +1,7 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.utils.safestring import mark_safe
+from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
 from .models import *
 
@@ -131,36 +132,99 @@ class APNAdmin(admin.ModelAdmin):
 
 class PackageAdmin(admin.ModelAdmin):
     list_display = (
-        'title',
-        'package_id',  # Fixed missing comma between fields
-        'operator',
-        'type',
-        'price',
-        'day',
-        'is_unlimited',
-        'is_fair_usage_policy',
+        "title",
+        "package_id",
+        "operator",
+        "type",
+        "price",
+        "day",
+        "is_unlimited",
+        "is_fair_usage_policy",
     )
     list_filter = (
-        'operator',
-        'type',
-        'is_unlimited',
-        'is_fair_usage_policy',
+        "operator",
+        "type",
+        "is_unlimited",
+        "is_fair_usage_policy",
     )
     search_fields = (
-        'title',
-        'operator__title',
-        'package_id',
+        "title",
+        "operator__title",
+        "package_id",
     )
     readonly_fields = (
-        'qr_installation',
-        'manual_installation',
-        'fair_usage_policy',
+        "qr_installation",
+        "manual_installation",
+        "fair_usage_policy",
     )
 
-admin.site.register(Package, PackageAdmin)
+
+# IMPORTANT:
+# Do NOT register Package if you want separated menus only.
+# If you still want to keep "Packages" in sidebar, uncomment this line.
+# admin.site.register(Package, PackageAdmin)
 
 
+class BasePackageAdmin(admin.ModelAdmin):
+    list_display = (
+        "title",
+        "package_id",
+        "operator",
+        "type",
+        "price",
+        "day",
+        "is_unlimited",
+        "is_fair_usage_policy",
+    )
+    list_filter = (
+        "operator",
+        "type",
+        "is_unlimited",
+        "is_fair_usage_policy",
+    )
+    search_fields = (
+        "title",
+        "operator__title",
+        "package_id",
+    )
+    readonly_fields = (
+        "qr_installation",
+        "manual_installation",
+        "fair_usage_policy",
+    )
 
+
+@admin.register(AiraloPackage)
+class AiraloPackageAdmin(BasePackageAdmin):
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        return qs.filter(provider=PackageProvider.AIRALO)
+
+    def save_model(self, request, obj, form, change):
+        obj.provider = PackageProvider.AIRALO
+        super().save_model(request, obj, form, change)
+
+
+@admin.register(SmartEsimPackage)
+class SmartEsimPackageAdmin(BasePackageAdmin):
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        return qs.filter(provider=PackageProvider.ESIM_ACCESS)
+
+    def save_model(self, request, obj, form, change):
+        obj.provider = PackageProvider.ESIM_ACCESS
+        super().save_model(request, obj, form, change)
+
+
+# If Package was registered somewhere else, hide it so you only see Airalo + Smart eSIMs
+try:
+    admin.site.unregister(Package)
+except admin.sites.NotRegistered:
+    pass
+
+
+# Optional: hide the original Package model so you only see the two separated menus
+# admin.site.unregister(Package)
 
 
 @admin.register(AiraloToken)
@@ -177,12 +241,6 @@ class AiraloTokenAdmin(admin.ModelAdmin):
         return obj.expires_at > timezone.now()
     is_valid_now.boolean = True
     is_valid_now.short_description = 'Is Valid'
-
-
-@admin.register(AiraloPackage)
-class AiraloPackageAdmin(admin.ModelAdmin):
-    list_display = ('name', 'package_id', 'country')
-    search_fields = ('name', 'package_id', 'country')
 
 
 @admin.register(AiraloFailedPackage)
@@ -423,5 +481,73 @@ class SocialMediaAdAdmin(admin.ModelAdmin):
         }),
         ('Social Media Links', {
             'fields': ('telegram_link', 'facebook_link', 'instagram_link', 'youtube_link')
+        }),
+    )
+    
+    
+class AiraloVoucherCodeInline(admin.TabularInline):
+    model = AiraloVoucherCode
+    extra = 0
+    can_delete = True
+    fields = ("package_id", "code", "booking_reference", "created_at")
+    readonly_fields = ("created_at",)
+    autocomplete_fields = ()
+    show_change_link = True
+
+    def has_add_permission(self, request, obj=None):
+        # Usually you only want these created from API response, not manually.
+        return False
+
+
+@admin.register(AiraloVoucherOrder)
+class AiraloVoucherOrderAdmin(admin.ModelAdmin):
+    list_display = (
+        "booking_reference",
+        "codes_count",
+        "meta_message",
+        "created_at",
+    )
+    list_filter = ("created_at",)
+    search_fields = ("booking_reference", "meta_message", "codes__code", "codes__package_id")
+    ordering = ("-created_at",)
+    date_hierarchy = "created_at"
+
+    readonly_fields = ("created_at", "raw_payload_pretty")
+    fields = ("booking_reference", "meta_message", "created_at", "raw_payload_pretty", "raw_payload")
+
+    inlines = (AiraloVoucherCodeInline,)
+
+    def codes_count(self, obj):
+        return obj.codes.count()
+    codes_count.short_description = "Codes"
+
+    def raw_payload_pretty(self, obj):
+        # Lightweight pretty view; keep raw JSONField editable below if you need.
+        return format_html("<pre style='white-space: pre-wrap; margin:0;'>{}</pre>", obj.raw_payload)
+    raw_payload_pretty.short_description = "Raw payload (preview)"
+
+
+@admin.register(AiraloVoucherCode)
+class AiraloVoucherCodeAdmin(admin.ModelAdmin):
+    list_display = (
+        "package_id",
+        "code",
+        "booking_reference",
+        "voucher_order",
+        "created_at",
+    )
+    list_filter = ("package_id", "created_at")
+    search_fields = ("package_id", "code", "booking_reference", "voucher_order__booking_reference")
+    ordering = ("-created_at",)
+
+    raw_id_fields = ("voucher_order",)
+    readonly_fields = ("created_at",)
+
+    fieldsets = (
+        ("Voucher Code", {
+            "fields": ("voucher_order", "package_id", "code", "booking_reference"),
+        }),
+        ("Timestamps", {
+            "fields": ("created_at",),
         }),
     )

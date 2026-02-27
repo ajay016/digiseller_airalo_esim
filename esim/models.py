@@ -9,10 +9,17 @@ from django.core.files.storage import default_storage
 from io import BytesIO
 from django.core.files.base import ContentFile
 from decimal import Decimal
+from django.utils.translation import gettext_lazy as _
 import uuid
+import logging
 
 
 
+
+
+
+
+logger = logging.getLogger(__name__)
 
 
 class UserManager(BaseUserManager):
@@ -178,9 +185,17 @@ class APN(models.Model):
     ios_apn_value = models.CharField(max_length=100, blank=True, null=True)
     android_apn_type = models.CharField(max_length=50, blank=True, null=True)
     android_apn_value = models.CharField(max_length=100, blank=True, null=True)
-
+class PackageProvider(models.TextChoices):
+    AIRALO = 'airalo', _('Airalo')
+    ESIM_ACCESS = 'esimaccess', _('ESIM Access')
 
 class Package(models.Model):
+    provider = models.CharField(
+        max_length=20,
+        choices=PackageProvider.choices,
+        default=PackageProvider.AIRALO,
+        db_index=True
+    )
     operator = models.ForeignKey(Operator, on_delete=models.CASCADE, related_name='packages')
     package_id = models.CharField(max_length=100, unique=True)
     type = models.CharField(max_length=50)
@@ -199,9 +214,24 @@ class Package(models.Model):
     text = models.CharField(max_length=50, blank=True, null=True)
     net_price = models.FloatField(blank=True, null=True)
     prices = models.JSONField(blank=True, null=True)  # includes currencies
+    
 
     def __str__(self):
         return f"{self.operator.title} - {self.title}"
+    
+
+class AiraloPackage(Package):
+    class Meta:
+        proxy = True
+        verbose_name = "Airalo Package"
+        verbose_name_plural = "Airalo Packages"
+
+
+class SmartEsimPackage(Package):
+    class Meta:
+        proxy = True
+        verbose_name = "Smart eSIM"
+        verbose_name_plural = "Smart eSIMs"
 
 
 
@@ -212,12 +242,12 @@ class AiraloToken(models.Model):
     def is_valid(self):
         return self.expires_at > timezone.now()
 
-class AiraloPackage(models.Model):
-    package_id = models.CharField(max_length=255, unique=True)
-    name = models.CharField(max_length=255)
-    country = models.CharField(max_length=255)
-    # Add other relevant fields from package data
-    raw_data = models.JSONField()
+# class AiraloPackage(models.Model):
+#     package_id = models.CharField(max_length=255, unique=True)
+#     name = models.CharField(max_length=255)
+#     country = models.CharField(max_length=255)
+#     # Add other relevant fields from package data
+#     raw_data = models.JSONField()
 
 class AiraloFailedPackage(models.Model):
     reason = models.TextField()
@@ -337,6 +367,39 @@ class AiraloSim(models.Model):
         return f"SIM {self.iccid}"
     
     
+class AiraloVoucherOrder(models.Model):
+    """
+    Voucher purchase response holder for /v2/voucher/esim
+    One voucher order is linked to one GgselOrder (via OneToOne).
+    """
+    booking_reference = models.CharField(max_length=64, db_index=True)  # order.order_id as string
+    meta_message = models.CharField(max_length=255, blank=True, null=True)
+    raw_payload = models.JSONField()
+    created_at = models.DateTimeField(default=timezone.now)
+
+    def __str__(self):
+        return f"VoucherOrder ref={self.booking_reference}"
+
+
+class AiraloVoucherCode(models.Model):
+    voucher_order = models.ForeignKey(
+        AiraloVoucherOrder,
+        on_delete=models.CASCADE,
+        related_name="codes"
+    )
+    package_id = models.CharField(max_length=128, db_index=True)
+    code = models.CharField(max_length=64, db_index=True)
+    booking_reference = models.CharField(max_length=64, db_index=True)
+
+    created_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        unique_together = ("package_id", "code", "booking_reference")
+
+    def __str__(self):
+        return f"{self.package_id} - {self.code}"
+    
+    
 
 class DigisellerOrder(models.Model):
     STATUS_CHOICES = [
@@ -387,6 +450,15 @@ class DigisellerOrder(models.Model):
     airalo_order      = models.OneToOneField(
                             AiraloOrder, on_delete=models.SET_NULL,
                             null=True, blank=True, related_name='digiseller_order')
+
+
+    esimaccess_order = models.OneToOneField(
+        'ESIMAccessOrder',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='digiseller_order_ref'
+    )
 
     # Cart & tracking
     cart_uid              = models.CharField(max_length=100, blank=True, null=True)
@@ -491,3 +563,284 @@ class SponsorAd(models.Model):
 
     def __str__(self):
         return self.title
+
+
+
+
+class ESIMAccessToken(models.Model):
+    """Token for ESIM Access API"""
+    access_token = models.TextField()
+    refresh_token = models.TextField(blank=True, null=True)
+    expires_at = models.DateTimeField()
+    token_type = models.CharField(max_length=50, default="Bearer")
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def is_valid(self):
+        return self.expires_at > timezone.now()
+
+
+class ESIMAccessPackage(models.Model):
+    """Raw package data from ESIM Access API"""
+    package_id = models.CharField(max_length=255, unique=True)
+    name = models.CharField(max_length=255)
+    country = models.CharField(max_length=255)
+    operator = models.CharField(max_length=255, blank=True, null=True)
+    raw_data = models.JSONField()
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+
+class ESIMAccessFailedPackage(models.Model):
+    """Failed ESIM Access package sync attempts"""
+    reason = models.TextField()
+    timestamp = models.DateTimeField(auto_now_add=True)
+    data = models.JSONField(null=True, blank=True)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+
+class ESIMAccessOrder(models.Model):
+    """
+    An order from eSIM Access API - mirrors AiraloOrder structure
+    """
+    # Core fields (matching AiraloOrder pattern)
+    esimaccess_id = models.PositiveIntegerField(unique=True, null=True, blank=True)  # "id" in response if available
+    order_no = models.CharField(max_length=100, unique=True, db_index=True)  # Main order identifier from API
+    transaction_id = models.CharField(max_length=100, blank=True, null=True)  # Our generated transaction ID
+    currency = models.CharField(max_length=8, default="USD")
+    package_id = models.CharField(max_length=128)  # Package code
+    quantity = models.PositiveIntegerField()
+    type = models.CharField(max_length=16, default="sim")
+    description = models.CharField(max_length=1500, blank=True, null=True)
+    
+    # Package details
+    package_title = models.CharField(max_length=128, blank=True, null=True)
+    data = models.CharField(max_length=32, blank=True, null=True)
+    price = models.DecimalField(max_digits=10, decimal_places=2)
+    net_price = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
+    
+    # Installation info
+    manual_installation = models.TextField(blank=True, null=True)
+    qrcode_installation = models.TextField(blank=True, null=True)
+    installation_guides = models.JSONField(blank=True, null=True, default=dict)
+    
+    # Status
+    STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('processing', 'Processing'),
+        ('completed', 'Completed'),
+        ('failed', 'Failed'),
+        ('refunded', 'Refunded'),
+    ]
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    
+    # REMOVED the digiseller_order field from here
+    
+    # Timestamps
+    created_at_api = models.DateTimeField(null=True, blank=True)  # When API says it was created
+    created_at = models.DateTimeField(default=timezone.now)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    # Response data
+    raw_payload = models.JSONField(default=dict, blank=True)
+    
+    # Error tracking
+    error_message = models.TextField(blank=True, null=True)
+    retry_count = models.PositiveIntegerField(default=0)
+    last_retry_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = "eSIM Access Order"
+        verbose_name_plural = "eSIM Access Orders"
+        indexes = [
+            models.Index(fields=['order_no']),
+            models.Index(fields=['status']),
+            models.Index(fields=['package_id']),
+            models.Index(fields=['created_at']),
+        ]
+
+    def __str__(self):
+        return f"ESIMAccessOrder {self.order_no} - {self.status}"
+
+    @property
+    def sims_count(self):
+        return self.sims.count()
+    
+    @property
+    def digiseller_order(self):
+        """Helper to get the related DigisellerOrder if it exists"""
+        from .models import DigisellerOrder  # Import here to avoid circular imports
+        try:
+            return DigisellerOrder.objects.get(esimaccess_order=self)
+        except DigisellerOrder.DoesNotExist:
+            return None
+
+
+class ESIMAccessSIM(models.Model):
+    """
+    Individual eSIM from an eSIM Access order - mirrors AiraloSim structure
+    """
+    # Relationship
+    esimaccess_order = models.ForeignKey(
+        'ESIMAccessOrder',
+        on_delete=models.CASCADE,
+        related_name='sims'
+    )
+    
+    # For compatibility with AiraloSim pattern
+    sim_id = models.CharField(max_length=100, unique=True, null=True, blank=True)  # esimTranNo from API
+    
+    # Core eSIM identifiers
+    iccid = models.CharField(max_length=50, unique=True, db_index=True)
+    imsi = models.CharField(max_length=50, blank=True, null=True)
+    esim_tran_no = models.CharField(max_length=100, blank=True, null=True)  # Transaction number
+    
+    # Installation details (matching AiraloSim field names)
+    lpa = models.CharField(max_length=500, blank=True, null=True)  # Activation code/LPA
+    qrcode = models.TextField(blank=True, null=True)  # Base64 QR code
+    qrcode_url = models.URLField(max_length=500, blank=True, null=True)
+    direct_apple_installation_url = models.URLField(max_length=500, blank=True, null=True)
+    
+    # eSIM Access specific fields
+    smdp_address = models.CharField(max_length=255, blank=True, null=True)
+    activation_code = models.CharField(max_length=255, blank=True, null=True)
+    confirmation_code = models.CharField(max_length=100, blank=True, null=True)
+    apn_type = models.CharField(max_length=50, blank=True, null=True)  # Matching AiraloSim
+    apn_value = models.CharField(max_length=100, blank=True, null=True)  # Matching AiraloSim
+    
+    # eSIM details
+    msisdn = models.CharField(max_length=50, blank=True, null=True)  # Phone number if available
+    is_roaming = models.BooleanField(default=False)  # Matching AiraloSim
+    
+    # Status
+    STATUS_CHOICES = [
+        ('active', 'Active'),
+        ('inactive', 'Inactive'),
+        ('expired', 'Expired'),
+        ('used', 'Used'),
+        ('pending', 'Pending'),
+    ]
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    
+    # Validity
+    expired_at = models.DateTimeField(null=True, blank=True)
+    activated_at = models.DateTimeField(null=True, blank=True)
+    
+    # Usage data
+    total_volume = models.BigIntegerField(default=0)  # in bytes
+    used_volume = models.BigIntegerField(default=0)
+    total_duration = models.IntegerField(default=0)  # in days
+    duration_unit = models.CharField(max_length=20, default="DAY")
+    
+    # Package info
+    package_name = models.CharField(max_length=255, blank=True, null=True)
+    
+    # Additional metadata
+    smdp_status = models.CharField(max_length=50, blank=True, null=True)
+    active_type = models.IntegerField(null=True, blank=True)
+    data_type = models.IntegerField(null=True, blank=True)
+    
+    # Raw data
+    raw_payload = models.JSONField(default=dict, blank=True)
+    
+    # Timestamps
+    created_at = models.DateTimeField(default=timezone.now)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = "eSIM Access SIM"
+        verbose_name_plural = "eSIM Access SIMs"
+        indexes = [
+            models.Index(fields=['iccid']),
+            models.Index(fields=['status']),
+            models.Index(fields=['expired_at']),
+            models.Index(fields=['sim_id']),
+        ]
+
+    def __str__(self):
+        return f"eSIM {self.iccid} - {self.status}"
+
+
+class ESIMAccessFailedOrder(models.Model):
+    """
+    Failed eSIM Access orders for retry tracking - mirrors AiraloFailedPackage pattern
+    """
+    FAILURE_STATUS = [
+        (1, 'New'),
+        (2, 'Retrying'),
+        (3, 'Permanent Failure'),
+        (4, 'Resolved'),
+    ]
+
+    # Relationships
+    digiseller_order = models.ForeignKey(
+        'DigisellerOrder',
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='esimaccess_failures'
+    )
+    
+    # For direct reference
+    order_no = models.CharField(max_length=100, blank=True, null=True, db_index=True)
+    package_code = models.CharField(max_length=100, blank=True, null=True)
+    
+    # Failure details
+    payload = models.JSONField(default=dict, blank=True)
+    error_message = models.TextField()
+    stack_trace = models.TextField(blank=True, null=True)
+    reason = models.TextField(blank=True, null=True)  # Simple reason field
+    status = models.IntegerField(choices=FAILURE_STATUS, default=1)
+    
+    # Retry tracking
+    retry_count = models.PositiveIntegerField(default=0)
+    last_retry_at = models.DateTimeField(null=True, blank=True)
+    
+    # Timestamps
+    timestamp = models.DateTimeField(auto_now_add=True)  # For compatibility
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = "eSIM Access Failed Order"
+        verbose_name_plural = "eSIM Access Failed Orders"
+        indexes = [
+            models.Index(fields=['status']),
+            models.Index(fields=['order_no']),
+            models.Index(fields=['created_at']),
+        ]
+
+    def __str__(self):
+        return f"Failed ESIMAccess Order {self.order_no or self.id} - {self.get_status_display()}"
+
+
+class ESIMAccessWebhookLog(models.Model):
+    """
+    Log incoming webhooks from eSIM Access (if they support webhooks)
+    """
+    event_type = models.CharField(max_length=100, blank=True, null=True)
+    order_no = models.CharField(max_length=100, blank=True, null=True, db_index=True)
+    payload = models.JSONField()
+    processed = models.BooleanField(default=False)
+    error_message = models.TextField(blank=True, null=True)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    processed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = "eSIM Access Webhook Log"
+        verbose_name_plural = "eSIM Access Webhook Logs"
+
+    def __str__(self):
+        return f"Webhook {self.event_type} - {self.order_no} - {self.created_at}"
+
+
+

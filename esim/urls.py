@@ -17,7 +17,7 @@ urlpatterns = [
     path('ggseller-products', views.ggseller_products, name='ggseller_products'),
     path('ggseller-product/<int:id>', views.ggseller_product, name='ggseller_product'),
     # path('sync_ggsel_products/', sync_ggsel_products, name='sync_ggsel_products'),
-
+    path('sync-esimaccess-data/', views.sync_esimaccess_data, name='sync_esimaccess_data'),
 
     path('get-packages-by-region/', views.get_packages_by_region, name='get_packages_by_region'),
     path('update-variants/', views.update_variants, name='update_variants'),

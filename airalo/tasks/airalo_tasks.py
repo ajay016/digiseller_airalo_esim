@@ -1,4 +1,4 @@
-from esim.models import DigisellerOrder, AiraloOrder, AiraloSim
+from esim.models import *
 from ggsel.models import GgselOrder
 from celery import shared_task
 from airalo.views import get_airalo_token
@@ -8,12 +8,17 @@ from django.utils import timezone
 from django.conf import settings
 import requests
 import json
+import logging
+from airalo.utils.voucher_email import build_voucher_email_html, send_voucher_email
 
 
 
 
 
 
+
+
+logger = logging.getLogger(__name__)
 
 AIRALO_BASE_API_URL = "https://partners-api.airalo.com"
 # AIRALO_BASE_API_URL = "https://imdb.com"
@@ -362,3 +367,185 @@ def fetch_airalo_order_detail(order_id: int) -> dict:
         else:
             # Last attempt failed
             raise
+        
+    
+@shared_task(bind=True, max_retries=5, default_retry_delay=60)
+def purchase_airalo_voucher_for_ggsel(self, ggsel_order_id):
+    logger.info("🎫 [VoucherTask] started ggsel_order_id=%s", ggsel_order_id)
+
+    try:
+        order = GgselOrder.objects.select_related("airalo_package").get(pk=ggsel_order_id)
+    except GgselOrder.DoesNotExist:
+        logger.info("🎫 [VoucherTask] order not found ggsel_order_id=%s", ggsel_order_id)
+        return
+
+    # Idempotency guard
+    if order.voucher_order_id:
+        logger.info(
+            "🎫 [VoucherTask] voucher already exists ggsel_order_id=%s voucher_order_id=%s",
+            order.id, order.voucher_order_id
+        )
+        return
+
+    order.status = "processing"
+    order.save(update_fields=["status"])
+    logger.info(
+        "🎫 [VoucherTask] set processing order_id=%s package_id=%s quantity=%s booking_reference=%s",
+        order.order_id, order.airalo_package.package_id, int(order.quantity), str(order.order_id)
+    )
+
+    payload = {
+        "vouchers": [
+            {
+                "package_id": order.airalo_package.package_id,
+                "quantity": int(order.quantity),
+                "booking_reference": str(order.order_id),
+            }
+        ]
+    }
+
+    api_token = get_airalo_token()
+    headers = {
+        "Authorization": f"Bearer {api_token}",
+        "Accept": "application/json",
+        "Content-Type": "application/json",
+    }
+
+    url = f"{AIRALO_BASE_API_URL}/v2/voucher/esim"
+    logger.info("🎫 [VoucherTask] POST %s payload=%s", url, payload)
+
+    try:
+        r = requests.post(url, headers=headers, json=payload, timeout=30)
+        logger.info("🎫 [VoucherTask] response status=%s body=%s", r.status_code, r.text)
+        r.raise_for_status()
+        resp = r.json()
+    except Exception as exc:
+        logger.exception("🎫 [VoucherTask] voucher POST failed: %s", exc)
+        order.status = "failed"
+        order.error_message = str(exc)
+        order.save(update_fields=["status", "error_message"])
+        raise self.retry(exc=exc)
+
+    # Validate response structure
+    data_list = resp.get("data", [])
+    meta = resp.get("meta", {}) or {}
+    meta_message = meta.get("message")
+
+    if not isinstance(data_list, list) or not data_list:
+        msg = f"Unexpected voucher response: data={data_list}"
+        logger.info("🎫 [VoucherTask] %s", msg)
+        order.status = "failed"
+        order.error_message = msg
+        order.save(update_fields=["status", "error_message"])
+        return
+
+    # Persist voucher order
+    voucher_order = AiraloVoucherOrder.objects.create(
+        booking_reference=str(order.order_id),
+        meta_message=meta_message,
+        raw_payload=resp,
+        created_at=timezone.now(),
+    )
+    logger.info(
+        "🎫 [VoucherTask] voucher_order created id=%s booking_reference=%s meta_message=%s",
+        voucher_order.id, voucher_order.booking_reference, voucher_order.meta_message
+    )
+
+    created_codes = 0
+
+    # Persist codes
+    for item in data_list:
+        package_id = item.get("package_id")
+        booking_reference = str(item.get("booking_reference", ""))
+        codes = item.get("codes", []) or []
+
+        logger.info(
+            "🎫 [VoucherTask] item package_id=%s booking_reference=%s codes_count=%s",
+            package_id, booking_reference, len(codes)
+        )
+
+        for code in codes:
+            try:
+                _, created = AiraloVoucherCode.objects.get_or_create(
+                    voucher_order=voucher_order,
+                    package_id=package_id or "",
+                    booking_reference=booking_reference or str(order.order_id),
+                    code=str(code),
+                )
+                if created:
+                    created_codes += 1
+            except Exception as exc:
+                logger.exception("🎫 [VoucherTask] failed saving code=%s exc=%s", code, exc)
+
+    # Link voucher to order (keep completed AFTER email success if you want)
+    order.voucher_order = voucher_order
+    order.save(update_fields=["voucher_order"])
+    logger.info(
+        "🎫 [VoucherTask] linked voucher_order ggsel_order_id=%s voucher_order_id=%s created_codes=%s",
+        order.id, voucher_order.id, created_codes
+    )
+
+    # ---- Email voucher codes to customer ----
+    customer_email = (order.buyer_email or "").strip()
+    if not customer_email:
+        msg = "buyer_email missing; cannot send voucher email"
+        logger.info("🎫 [VoucherTask] %s ggsel_order_id=%s order_id=%s", msg, order.id, order.order_id)
+        order.status = "failed"
+        order.error_message = msg
+        order.save(update_fields=["status", "error_message"])
+        return
+
+    # Collect all saved codes for this voucher_order
+    saved_codes_qs = AiraloVoucherCode.objects.filter(voucher_order=voucher_order).order_by("id")
+    saved_codes = list(saved_codes_qs.values_list("code", flat=True))
+
+    if not saved_codes:
+        msg = "no voucher codes saved; cannot send email"
+        logger.info("🎫 [VoucherTask] %s ggsel_order_id=%s voucher_order_id=%s", msg, order.id, voucher_order.id)
+        order.status = "failed"
+        order.error_message = msg
+        order.save(update_fields=["status", "error_message"])
+        return
+
+    # For email content we can use package_id from response (first item) or order.airalo_package.package_id
+    first_item_package_id = None
+    try:
+        first_item_package_id = (data_list[0] or {}).get("package_id")
+    except Exception:
+        first_item_package_id = None
+
+    package_id_for_email = first_item_package_id or order.airalo_package.package_id
+
+    subject, text, html = build_voucher_email_html(
+        customer_email=customer_email,
+        booking_reference=str(order.order_id),
+        package_id=package_id_for_email,
+        codes=saved_codes,
+    )
+
+    logger.info(
+        "🎫 [VoucherTask] sending voucher email ggsel_order_id=%s to=%s codes_count=%s",
+        order.id, customer_email, len(saved_codes)
+    )
+
+    try:
+        send_voucher_email(to_email=customer_email, subject=subject, text=text, html=html)
+    except Exception as exc:
+        logger.exception("🎫 [VoucherTask] email send failed ggsel_order_id=%s exc=%s", order.id, exc)
+        order.status = "failed"
+        order.error_message = f"Email send failed: {exc}"
+        order.save(update_fields=["status", "error_message"])
+        raise self.retry(exc=exc)
+
+    # Mark completed only after successful email
+    order.status = "completed"
+    order.error_message = None
+    order.save(update_fields=["status", "error_message"])
+
+    logger.info(
+        "🎫 [VoucherTask] completed + emailed ggsel_order_id=%s voucher_order_id=%s",
+        order.id, voucher_order.id
+    )
+
+    # NOTE: per your request, we STOP after saving voucher codes.
+    # Do NOT call deliver_unique_code() here.

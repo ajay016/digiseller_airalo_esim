@@ -680,7 +680,7 @@ def handle_digiseller_webhook(data: Dict, code) -> None:
         
         
 def persist_and_queue(product, variant, airalo_pkg, buyer_info, quantity, content, order_id, purchase_date_raw, code):
-    """Create DigisellerOrder and enqueue Celery task."""
+    """Create DigisellerOrder and enqueue appropriate Celery task based on provider."""
     try:
         digiseller_order = DigisellerOrder.objects.get(order_id=order_id)
         DigisellerFailedOrder.objects.filter(unique_code=code).delete()
@@ -696,12 +696,12 @@ def persist_and_queue(product, variant, airalo_pkg, buyer_info, quantity, conten
     except (ValueError, TypeError):
         purchase_date = None  # Fallback if parsing fails
 
-    # email = buyer_info.get("email")
+    # Create the DigisellerOrder
     digiseller_order = DigisellerOrder.objects.create(
         order_id=order_id,
         product=product,
         variant=variant,
-        airalo_package=airalo_pkg,
+        airalo_package=airalo_pkg,  # This is the Package object (can be Airalo or eSIM Access)
         quantity=quantity,
         buyer_email=buyer_info.get("email"),
         buyer_ip=buyer_info.get("ip_address"),
@@ -716,17 +716,43 @@ def persist_and_queue(product, variant, airalo_pkg, buyer_info, quantity, conten
         unique_code=code
     )
     
-    purchase_airalo_sim.delay(digiseller_order.id)
+    # Check the provider directly from the Package model
+    if airalo_pkg:
+        provider = airalo_pkg.provider  # Get provider from Package model
+        
+        if provider == 'airalo':
+            # Airalo provider
+            from airalo.tasks.airalo_tasks import purchase_airalo_sim
+            purchase_airalo_sim.delay(digiseller_order.id)
+
+            
+        elif provider == 'esimaccess':
+            # eSIM Access provider
+            from esim.task.esim_tasks import purchase_esimaccess_sim
+            purchase_esimaccess_sim.delay(digiseller_order.id)
+   
+            
+        else:
+            # Unknown provider
+        
+            digiseller_order.status = "failed"
+            digiseller_order.error_message = f"Unknown provider: {provider}"
+            digiseller_order.save(update_fields=["status", "error_message"])
+    else:
+        # No package assigned
+
+        digiseller_order.status = "failed"
+        digiseller_order.error_message = "No package assigned"
+        digiseller_order.save(update_fields=["status", "error_message"])
     
     DigisellerFailedOrder.objects.filter(unique_code=code).delete()
     
     if DigisellerFailedOrder.objects.all().exists():
-        print('digiseller failed order exists')
+      
         from digiseller.tasks.task import retry_all_failed_orders
         retry_all_failed_orders.delay()
     
     return digiseller_order
-    
     
 def update_digiseller_order(order_id: int, status: int) -> None:
     """Update only the digiseller_transaction_status field of an existing order."""

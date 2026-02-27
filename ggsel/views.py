@@ -37,7 +37,11 @@ import json
 import re
 from esim.models import *
 from ggsel.models import *
-from airalo.tasks.airalo_tasks import purchase_airalo_sim_for_ggsel, fetch_completed_orders
+from airalo.tasks.airalo_tasks import(
+    purchase_airalo_sim_for_ggsel,
+    fetch_completed_orders,
+    purchase_airalo_voucher_for_ggsel
+)
 
 
 
@@ -946,7 +950,16 @@ def persist_and_queue(product, variant, airalo_pkg, buyer_info, quantity, conten
     )
 
     # Enqueue the Celery background task
-    purchase_airalo_sim_for_ggsel.delay(ggsel_order.id)
+    # purchase_airalo_sim_for_ggsel.delay(ggsel_order.id)
+    mode = getattr(settings, "AIRALO_FULFILLMENT_MODE", "order")
+    logger.info("📦 persist_and_queue: fulfillment_mode=%s order_id=%s", mode, ggsel_order.order_id)
+
+    if mode == "voucher":
+        purchase_airalo_voucher_for_ggsel.delay(ggsel_order.id)
+        logger.info("📦 persist_and_queue: queued voucher task ggsel_order_id=%s", ggsel_order.id)
+    else:
+        purchase_airalo_sim_for_ggsel.delay(ggsel_order.id)
+        logger.info("📦 persist_and_queue: queued SIM order task ggsel_order_id=%s", ggsel_order.id)
 
     # Remove any failed-order record for this order
     GgselFailedOrder.objects.filter(order_id=order_id).delete()
