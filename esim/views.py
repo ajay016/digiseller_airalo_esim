@@ -273,6 +273,7 @@ def digiseller_product(request, id):
         'selected_country_title': selected_country.title if selected_country else '',
         'selected_operator_id': selected_operator.id if selected_operator else None,
         'packages': packages.order_by('-price'),
+        'providers': PackageProvider.choices,
     }
     return render(request, 'digiseller/digiseller_product.html', context)
 
@@ -972,6 +973,7 @@ def ggseller_product(request, id):
         'selected_country_title': selected_country.title if selected_country else '',
         'selected_operator_id': selected_operator.id if selected_operator else None,
         'packages': packages.order_by('-price'),
+        'providers': PackageProvider.choices,
     }
     return render(request, 'ggseller/ggseller_product.html', context)
 

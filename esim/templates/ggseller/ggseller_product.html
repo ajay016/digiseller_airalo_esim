@@ -383,7 +383,7 @@
                             <div class="card-body">
                                 <div class="row">
                                     <input type="hidden" id="activeVariantId">
-                                    <div class="col-md-6 col-12">
+                                    <div class="col-md-4 col-12">
                                         <label class="form-label" for="country">Select a Base Country/Region</label><span class="required-fields-mark">*</span>
                                         <select class="select2" name="country" id="country">
                                             <option value="">Select a Base Country/Region</option>
@@ -393,12 +393,21 @@
                                         </select>
                                     </div>
 
-                                    <div class="col-md-6 col-12">
+                                    <div class="col-md-4 col-12">
                                         <label class="form-label" for="operator-country">Select Operator Country</label><span class="required-fields-mark">*</span>
                                         <select class="select2" name="operator_country" id="operator-country">
                                             <option value="">Select an Operator Country</option>
                                             {% for operator_country in operator_countries %}
                                                 <option value="{{ operator_country.id }}">{{ operator_country.title }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+
+                                    <div class="col-md-4 col-12">
+                                        <label class="form-label" for="provider">Select Provider</label><span class="required-fields-mark">*</span>
+                                        <select class="select2" name="provider" id="provider">
+                                            {% for value, label in providers %}
+                                                <option value="{{ value }}" {% if value == 'airalo' %}selected{% endif %}>{{ label }}</option>
                                             {% endfor %}
                                         </select>
                                     </div>
@@ -506,6 +515,12 @@
             dropdownParent: $('#editModal'),
             width: '100%'
         });
+
+        $('#provider').select2({
+            placeholder: 'Select a Provider',
+            dropdownParent: $('#editModal'),
+            width: '100%'
+        });
     });
 </script>
 
@@ -516,6 +531,7 @@
         const $regionSelect  = $('#operator-country');
         const $errorDiv      = $('.error-success-div');
         const $modal         = $('#editModal');
+        const $providerSelect = $('#provider');
 
         // stash active variant
         $modal.on('show.bs.modal', function(event) {
@@ -583,7 +599,7 @@
 
             if (countryId) {
                 $("#region-country-name").text(`Country/Region: ${countryName}`);
-                fetchPackages(`country=${countryId}`);
+                fetchPackages(`country=${countryId}&provider=${$providerSelect.val()}`);
             } else {
                 $("#region-country-name").text('');
             }
@@ -601,9 +617,22 @@
 
             if (regionId) {
                 $("#region-country-name").text(`Country/Region: ${regionName}`);
-                fetchPackages(`region=${regionId}`);
+                fetchPackages(`region=${regionId}&provider=${$providerSelect.val()}`);
             } else {
                 $("#region-country-name").text('');
+            }
+        });
+
+        $('#provider').on('change', function () {
+            const provider = $(this).val();
+
+            const countryId = $('#country').val();
+            const regionId = $('#operator-country').val();
+
+            if (countryId) {
+                fetchPackages(`country=${countryId}&provider=${provider}`);
+            } else if (regionId) {
+                fetchPackages(`region=${regionId}&provider=${provider}`);
             }
         });
 
