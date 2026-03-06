@@ -26,6 +26,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Dict, List, Tuple
 from django.http import HttpResponse
 from django.utils import translation
+from celery.result import AsyncResult
 import traceback
 import base64
 from django.conf import settings
@@ -42,6 +43,7 @@ from airalo.tasks.airalo_tasks import(
     fetch_completed_orders,
     purchase_airalo_voucher_for_ggsel
 )
+
 
 
 
@@ -65,32 +67,26 @@ RETRY_DELAY_SECONDS = 2
 
 # 1. Manage Digiseller token creation with caching
 def get_ggsel_token():
-    """
-    Get a valid Digiseller token from cache or request a new one using their API.
-    Retries on failure with exponential backoff.
-    """
     token = cache.get(GGSEL_TOKEN_CACHE_KEY)
     if token:
         return token
 
     timestamp = int(time.time())
-    signature = hashlib.sha256(f"{API_KEY}{timestamp}".encode('utf-8')).hexdigest()
+    signature = hashlib.sha256(f"{API_KEY}{timestamp}".encode("utf-8")).hexdigest()
 
     payload = {
         "seller_id": int(SELLER_ID),
         "timestamp": str(timestamp),
-        "sign": str(signature)
+        "sign": str(signature),
     }
-    
-    print('payload in get token: ', payload)
 
     for attempt in range(1, MAX_RETRIES + 1):
         try:
-            print(f"🔁 Attempt {attempt} to get Digiseller token")
+            logger.warning(f"[get_ggsel_token] attempt={attempt}")
             response = requests.post(TOKEN_API_URL, json=payload, timeout=10)
             response.raise_for_status()
 
-            result = json.loads(response.content.decode('utf-8-sig'))
+            result = json.loads(response.content.decode("utf-8-sig"))
 
             if result.get("retval") != 0:
                 raise Exception(f"Digiseller error {result.get('retval')}: {result.get('desc')}")
@@ -114,130 +110,54 @@ def get_ggsel_token():
                 raise Exception("Received expired token")
 
             cache.set(GGSEL_TOKEN_CACHE_KEY, token, timeout=ttl_seconds)
-            print("✅ Token obtained and cached: ", token)
+            logger.warning("[get_ggsel_token] token cached successfully")
             return token
 
         except Exception as e:
-            logger.exception(f"❌ Attempt {attempt} failed to get token: {e}")
+            logger.exception(f"[get_ggsel_token] attempt={attempt} failed: {e}")
             if attempt == MAX_RETRIES:
                 raise Exception(f"Failed to obtain Digiseller token after {MAX_RETRIES} attempts: {e}")
-            else:
-                time.sleep(RETRY_DELAY_SECONDS * attempt)  # exponential backoff
+            time.sleep(RETRY_DELAY_SECONDS * attempt)
     
-
-# 2. Fetch seller goods list with generated token
-# def fetch_seller_goods(rows=1000, owner_id=1):
-#     """
-#     Fetch all seller goods from Digiseller API, handling pagination automatically.
-#     Returns a list of all product rows.
-#     """
-#     token = get_ggsel_token()
-#     all_products = []
-#     page = 1
-#     total_pages = 1  # Default fallback
-
-#     try:
-#         while page <= total_pages:
-#             payload = {
-#                 "id_seller": SELLER_ID,
-#                 "order_col": "name",
-#                 "order_dir": "asc",
-#                 "rows": rows,
-#                 "page": page,
-#                 "currency": "RUR",
-#                 "lang": "en-US",
-#                 "show_hidden": 1,
-#                 "owner_id": owner_id,
-#             }
-
-#             logger.info(f"📄 Fetching page {page} (rows={rows}, owner_id={owner_id})")
-#             resp = requests.post(f"{SELLER_GOODS_URL}?token={token}", json=payload, timeout=20)
-#             resp.raise_for_status()
-
-#             text = resp.content.decode("utf-8-sig")
-#             raw = json.loads(text)
-
-#             if page == 1:
-#                 total_pages = int(raw.get("pages", 1))
-#                 logger.info(f"🧾 Total pages to fetch: {total_pages}")
-
-#             page_rows = raw.get("rows", [])
-#             all_products.extend(page_rows)
-
-#             logger.info(f"✅ Page {page}/{total_pages} fetched: {len(page_rows)} items")
-
-#             if not page_rows:
-#                 logger.warning(f"⚠️ No data returned on page {page}, stopping early.")
-#                 break
-
-#             page += 1
-#             time.sleep(1)  # Optional delay to avoid rate limiting
-
-#         logger.info(f"🎯 Total products fetched: {len(all_products)}")
-#         return all_products
-
-#     except Exception as e:
-#         logger.exception(f"fetch_seller_goods error: {e}")
-#         GgselFailedEntry.objects.create(
-#             reason=f"fetch_seller_goods error: {e}",
-#             data={"owner_id": owner_id, "page": page},
-#         )
-#         return []
 
 
 def fetch_seller_goods(rows=1000, owner_id=1, max_workers=8):
-    """
-    Fetch all seller goods from Digiseller API concurrently.
-    Returns a list of all product rows.
-    """
-    logger.info(f"[fetch_seller_goods] START owner_id={owner_id}, rows={rows}, max_workers={max_workers}")
+    logger.warning(f"[fetch_seller_goods] START owner_id={owner_id}, rows={rows}, max_workers={max_workers}")
+
     token = get_ggsel_token()
     all_products = []
-    page = 1
     total_pages = 1
-    
-    logger.info(f"[fetch_seller_goods] token acquired: {token[:8]}..." if token else "[fetch_seller_goods] token is empty/null")
 
-    # First call just to get total pages
     try:
-        logger.info(f"📄 Fetching first page to detect total page count...")
         payload = {
             "id_seller": SELLER_ID,
             "order_col": "name",
             "order_dir": "asc",
             "rows": rows,
-            "page": page,
+            "page": 1,
             "currency": "RUR",
             "lang": "en-US",
             "show_hidden": 1,
             "owner_id": owner_id,
         }
-        logger.info(f"[fetch_seller_goods] first page payload: {payload}")
-        
+
         resp = requests.post(f"{SELLER_GOODS_URL}?token={token}", json=payload, timeout=20)
-        
-        logger.info(f"[fetch_seller_goods] first page response status={resp.status_code}")
-        logger.info(f"[fetch_seller_goods] first page raw response preview={resp.text[:500]}")
-        
+        logger.warning(f"[fetch_seller_goods] first page status={resp.status_code}")
         resp.raise_for_status()
+
         text = resp.content.decode("utf-8-sig")
-        
-        logger.info(f"[fetch_seller_goods] first page decoded text preview={text[:500]}")
-        
         raw = json.loads(text)
 
         total_pages = int(raw.get("pages", 1))
         first_page_rows = raw.get("rows", [])
         all_products.extend(first_page_rows)
 
-        logger.info(f"🧾 Total pages detected: {total_pages}")
-        logger.info(f"✅ Page 1 fetched with {len(first_page_rows)} items")
+        logger.warning(f"[fetch_seller_goods] total_pages={total_pages}, first_page_rows={len(first_page_rows)}")
 
     except Exception as e:
-        logger.exception(f"[fetch_seller_goods] Initial page fetch failed: {e}")
+        logger.exception(f"[fetch_seller_goods] initial fetch failed: {e}")
         return []
 
-    # Helper function to fetch a single page
     def fetch_page(page_number):
         try:
             page_payload = {
@@ -252,79 +172,73 @@ def fetch_seller_goods(rows=1000, owner_id=1, max_workers=8):
                 "owner_id": owner_id,
             }
 
-            logger.warning(f"[fetch_page] HIT page={page_number}")
-            logger.info(f"[fetch_page] payload={page_payload}")
-
             resp = requests.post(
                 f"{SELLER_GOODS_URL}?token={token}",
                 json=page_payload,
-                timeout=20
+                timeout=20,
             )
-
-            logger.warning(f"[fetch_page] page={page_number} status={resp.status_code}")
-            logger.info(f"[fetch_page] page={page_number} raw response preview={resp.text[:500]}")
-
+            logger.warning(f"[fetch_page] page={page_number}, status={resp.status_code}")
             resp.raise_for_status()
+
             text = resp.content.decode("utf-8-sig")
             raw = json.loads(text)
             page_rows = raw.get("rows", [])
 
-            logger.warning(f"[fetch_page] page={page_number} fetched count={len(page_rows)}")
+            logger.warning(f"[fetch_page] page={page_number}, fetched={len(page_rows)}")
             return page_rows
+
         except Exception as e:
-            logger.exception(f"⚠️ Error fetching page {page_number}: {e}")
+            logger.exception(f"[fetch_page] page={page_number} failed: {e}")
             GgselFailedEntry.objects.create(
                 reason=f"fetch_seller_goods page {page_number} error: {e}",
                 data={"owner_id": owner_id, "page": page_number},
             )
             return []
 
-    # Fetch remaining pages concurrently
     if total_pages > 1:
-        logger.info(f"🚀 Fetching remaining {total_pages - 1} pages concurrently (max_workers={max_workers})")
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
             futures = {executor.submit(fetch_page, p): p for p in range(2, total_pages + 1)}
             for future in as_completed(futures):
                 try:
-                    rows = future.result()
-                    all_products.extend(rows)
+                    page_rows = future.result()
+                    all_products.extend(page_rows)
                 except Exception as e:
-                    logger.exception(f"Thread exception on page {futures[future]}: {e}")
+                    logger.exception(f"[fetch_seller_goods] thread exception page={futures[future]}: {e}")
 
-    logger.info(f"🎯 Total products fetched: {len(all_products)}")
+    logger.warning(f"[fetch_seller_goods] END total_products={len(all_products)}")
     return all_products
+
 
 # 3. Filter products starting with 'esim' (case-insensitive)
 def filter_esim_products(products):
-    return [p for p in products if p.get("name_goods", "").lower().startswith("esim")]
+    filtered = [p for p in products if p.get("name_goods", "").lower().startswith("esim")]
+    logger.warning(f"[filter_esim_products] input={len(products)}, filtered={len(filtered)}")
+    return filtered
 
 
 # 4. Fetch detailed product variants
 def fetch_product_variants(product_id):
     url = PRODUCT_DETAIL_URL.format(product_id=product_id)
-    
-    headers = {
-        'Accept': 'application/json',
-    }
-    
-    resp = requests.get(url, headers=headers, timeout=15)
+
     try:
+        resp = requests.get(url, headers={"Accept": "application/json"}, timeout=15)
+        logger.warning(f"[fetch_product_variants] product_id={product_id}, status={resp.status_code}")
         resp.raise_for_status()
-        text = resp.content.decode('utf-8-sig')
+
+        text = resp.content.decode("utf-8-sig")
         raw = json.loads(text)
         return raw.get("product", {}).get("options", [])
+
     except Exception as e:
-        logger.exception(f"fetch_product_variants error (id {product_id}): {e}")
+        logger.exception(f"[fetch_product_variants] product_id={product_id} failed: {e}")
         GgselFailedEntry.objects.create(
             reason=f"fetch_product_variants error (id {product_id}): {e}",
-            data={'product_id': product_id}
+            data={"product_id": product_id},
         )
         return []
 
 
-# 5. Save product and its variants
 def save_product_with_variants(prod_data):
-    # Save product
     product, _ = GgselProduct.objects.update_or_create(
         id_goods=prod_data["id_goods"],
         defaults={
@@ -337,15 +251,12 @@ def save_product_with_variants(prod_data):
             "price_usd": prod_data.get("price_usd"),
             "price_rur": prod_data.get("price_rur"),
             "price_eur": prod_data.get("price_eur"),
-        }
+        },
     )
-    # Remove old variants
-    # product.variants.all().delete()
-    
-    # Track current variant_values to find which to delete later
-    updated_variant_values = set()
 
-    # Create new variants
+    logger.warning(f"[save_product_with_variants] saved product id_goods={product.id_goods}")
+
+    updated_variant_values = set()
     options = fetch_product_variants(product.id_goods)
     first_option = next((opt for opt in options if opt.get("type") == "radio"), None)
 
@@ -355,7 +266,6 @@ def save_product_with_variants(prod_data):
             updated_variant_values.add(variant_value)
 
             try:
-                # Create or update variant by variant_value
                 GgselVariant.objects.update_or_create(
                     product=product,
                     variant_value=variant_value,
@@ -367,71 +277,87 @@ def save_product_with_variants(prod_data):
                         "modify_value_default": variant.get("modify_value_default"),
                         "modify_type": variant.get("modify_type"),
                         "visible": bool(variant.get("visible", 1)),
-                    }
+                    },
                 )
             except Exception as e:
-                logger.exception(f"variant save error (prod {product.id_goods}): {e}")
+                logger.exception(f"[save_product_with_variants] variant save error prod={product.id_goods}: {e}")
                 GgselFailedEntry.objects.create(
                     reason=f"variant save error (prod {product.id_goods}): {e}",
-                    data=variant
+                    data=variant,
                 )
 
-    # Delete variants that are no longer present in the fetched data
-    GgselVariant.objects.filter(
-        product=product
-    ).exclude(
+    GgselVariant.objects.filter(product=product).exclude(
         variant_value__in=updated_variant_values
     ).delete()
 
     return product
 
+
 # 6. Main view to orchestrate the sync process
 @api_view(["POST"])
 @permission_classes([AllowAny])
 def sync_ggsel_products(request):
-    logger.info("[sync_ggsel_products] START")
-    logger.info(f"[sync_ggsel_products] request.data={request.data}")
-
+    from ggsel.tasks.task import sync_ggsel_products_task
     try:
         owner_id = request.data.get("owner_id", 1)
-        logger.info(f"[sync_ggsel_products] owner_id={owner_id}")
+        task = sync_ggsel_products_task.delay(owner_id=owner_id)
 
-        raw_products = fetch_seller_goods(owner_id=owner_id)
-        logger.info(f"[sync_ggsel_products] total fetched={len(raw_products)}")
-        print(f"Raw GGSSEL products from syncing: {raw_products}")
+        logger.warning(f"[sync_ggsel_products] queued task_id={task.id}, owner_id={owner_id}")
 
-        esim_products = filter_esim_products(raw_products)
-        logger.info(f"[sync_ggsel_products] filtered eSIM products={len(esim_products)}")
-
-        if esim_products:
-            logger.info(
-                f"[sync_ggsel_products] first 10 esim product ids="
-                f"{[p.get('id_goods') for p in esim_products[:10]]}"
-            )
-
-        saved_ids = []
-        for index, prod in enumerate(esim_products, start=1):
-            logger.info(
-                f"[sync_ggsel_products] processing {index}/{len(esim_products)} "
-                f"id_goods={prod.get('id_goods')} name={prod.get('name_goods')}"
-            )
-            try:
-                saved = save_product_with_variants(prod)
-                saved_ids.append(saved.id_goods)
-                logger.info(f"[sync_ggsel_products] saved product id_goods={saved.id_goods}")
-            except Exception as e:
-                logger.exception(f"[sync_ggsel_products] save_product error (id {prod.get('id_goods')}): {e}")
-                GgselFailedEntry.objects.create(
-                    reason=f"save_product error (id {prod.get('id_goods')}): {e}",
-                    data=prod,
-                )
-
-        logger.info(f"[sync_ggsel_products] END success saved_count={len(saved_ids)}")
-        return Response({"saved_product_ids": saved_ids}, status=status.HTTP_201_CREATED)
+        return Response({
+            "success": True,
+            "message": "GGSEL sync started successfully",
+            "task_id": task.id,
+            "status": "started",
+        }, status=status.HTTP_200_OK)
 
     except Exception as e:
-        logger.exception(f"[sync_ggsel_products] Sync failed: {e}")
-        return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        logger.exception(f"[sync_ggsel_products] Error starting GGSEL sync: {e}")
+        return Response({
+            "success": False,
+            "error": str(e),
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+
+@api_view(["GET"])
+@permission_classes([AllowAny])
+def sync_ggsel_products_status(request, task_id):
+    result = AsyncResult(task_id)
+
+    if result.state == "PENDING":
+        return Response({
+            "status": "pending",
+            "task_id": task_id,
+            "message": "Task is waiting to run",
+        })
+
+    if result.state == "STARTED":
+        return Response({
+            "status": "started",
+            "task_id": task_id,
+            "message": "Task is running",
+        })
+
+    if result.state == "SUCCESS":
+        return Response({
+            "status": "completed",
+            "task_id": task_id,
+            "message": "GGSEL sync completed successfully",
+            "result": result.result,
+        })
+
+    if result.state == "FAILURE":
+        return Response({
+            "status": "failed",
+            "task_id": task_id,
+            "message": str(result.result),
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    return Response({
+        "status": result.state.lower(),
+        "task_id": task_id,
+        "message": f"Task state: {result.state}",
+    })
 
 
 @api_view(['GET'])
