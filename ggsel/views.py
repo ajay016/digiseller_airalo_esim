@@ -319,55 +319,23 @@ def sync_ggsel_products(request):
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         
 
-@api_view(["GET"])
-@permission_classes([AllowAny])
 def sync_ggsel_products_status(request, task_id):
     try:
         result = AsyncResult(task_id)
-        task_state = result.state
 
-        if task_state == "PENDING":
-            return Response({
-                "status": "pending",
-                "task_id": task_id,
-                "message": "Task is waiting to run",
-            }, status=status.HTTP_200_OK)
-
-        if task_state == "STARTED":
-            return Response({
-                "status": "started",
-                "task_id": task_id,
-                "message": "Task is running",
-            }, status=status.HTTP_200_OK)
-
-        if task_state == "SUCCESS":
-            return Response({
-                "status": "completed",
-                "task_id": task_id,
-                "message": "GGSEL sync completed successfully",
-                "result": result.result,
-            }, status=status.HTTP_200_OK)
-
-        if task_state == "FAILURE":
-            return Response({
-                "status": "failed",
-                "task_id": task_id,
-                "message": str(result.result),
-            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-        return Response({
-            "status": task_state.lower(),
+        return JsonResponse({
+            "ok": True,
             "task_id": task_id,
-            "message": f"Task state: {task_state}",
-        }, status=status.HTTP_200_OK)
+            "state": str(result.state),
+            "result_repr": repr(result.result),
+        })
 
     except Exception as e:
-        logger.exception(f"[sync_ggsel_products_status] task_id={task_id} error: {e}")
-        return Response({
-            "status": "failed",
-            "task_id": task_id,
-            "message": str(e),
-        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        return JsonResponse({
+            "ok": False,
+            "error": str(e),
+            "traceback": traceback.format_exc(),
+        }, status=500)
 
 
 @api_view(['GET'])
