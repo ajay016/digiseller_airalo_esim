@@ -333,18 +333,20 @@
     $(document).ready(function () {
         const $syncModal = new bootstrap.Modal($('#syncModal')[0]);
         const $retryBtn = $('#retry-sync');
-        let lastSyncRequest = { url: null, method: 'GET', body: null, sourceLabel: null };
+        let lastSyncRequest = { url: null, method: 'GET', body: null, sourceLabel: null, statusUrl: null };
         let pollInterval = null;
 
-        function checkTaskStatus(taskId, sourceLabel) {
-            // Clear any existing interval
+        function checkTaskStatus(taskId, sourceLabel, statusUrlTemplate) {
             if (pollInterval) {
                 clearInterval(pollInterval);
             }
 
-            // Poll for task status every 2 seconds
+            const finalStatusUrl = statusUrlTemplate.includes('__TASK_ID__')
+                ? statusUrlTemplate.replace('__TASK_ID__', taskId)
+                : `${statusUrlTemplate}?task_id=${taskId}`;
+
             pollInterval = setInterval(() => {
-                fetch(`{% url 'sync_esimaccess_data' %}?task_id=${taskId}`, {
+                fetch(finalStatusUrl, {
                     method: 'GET',
                     headers: {
                         'X-CSRFToken': '{{ csrf_token }}',
@@ -355,24 +357,19 @@
                 .then(response => response.json())
                 .then(data => {
                     if (data.status === 'completed') {
-                        // Task completed successfully
                         clearInterval(pollInterval);
                         $('#sync-loading').addClass('d-none');
                         $('#sync-success').removeClass('d-none');
-                        
-                        // Optionally update the page data
+
                         setTimeout(() => {
-                            location.reload(); // Reload to show updated stats
+                            location.reload();
                         }, 2000);
-                    } 
-                    else if (data.status === 'failed') {
-                        // Task failed
+                    } else if (data.status === 'failed') {
                         clearInterval(pollInterval);
                         $('#sync-loading').addClass('d-none');
                         $('#sync-error').removeClass('d-none');
-                        $('#error-message').text(data.error || 'Sync failed');
+                        $('#error-message').text(data.error || data.message || 'Sync failed');
                     }
-                    // If status is 'pending', continue polling
                 })
                 .catch(error => {
                     console.error('Error checking task status:', error);
@@ -384,8 +381,8 @@
             }, 2000);
         }
 
-        function handleSyncRequest({ url, method = 'GET', body = null, sourceLabel = 'Data' }) {
-            lastSyncRequest = { url, method, body, sourceLabel };
+        function handleSyncRequest({ url, method = 'GET', body = null, sourceLabel = 'Data', statusUrl = null }) {
+            lastSyncRequest = { url, method, body, sourceLabel, statusUrl };
 
             // Set dynamic modal text
             $('#syncModal h5').text(`Syncing ${sourceLabel}`);
@@ -419,7 +416,7 @@
                 // Check if this is an async task response (has task_id)
                 if (data.task_id) {
                     // Start polling for task status
-                    checkTaskStatus(data.task_id, sourceLabel);
+                    checkTaskStatus(data.task_id, sourceLabel, statusUrl || url);
                 } else {
                     // Regular sync completed
                     $('#sync-loading').addClass('d-none');
@@ -448,18 +445,20 @@
             handleSyncRequest({
                 url: "{% url 'sync_esimaccess_data' %}",
                 method: "GET",
-                sourceLabel: "ESIM Access Data"
+                sourceLabel: "ESIM Access Data",
+                statusUrl: "{% url 'sync_esimaccess_data' %}"
             });
         });
 
         // Digiseller Plati products sync
-        $('#sync-digiseller-btn').on('click', function () {
+        $('#sync-ggesel-btn').on('click', function () {
             const ownerId = $(this).data('market-id');
             handleSyncRequest({
-                url: "{% url 'sync_esim_products' %}",
+                url: "{% url 'sync_ggsel_products' %}",
                 method: "POST",
                 body: { owner_id: ownerId },
-                sourceLabel: "Digiseller Data"
+                sourceLabel: "GGsel Digiseller Data",
+                statusUrl: "/ggsel/sync/status/__TASK_ID__/"
             });
         });
 
@@ -470,7 +469,8 @@
                 url: "{% url 'sync_ggsel_products' %}",
                 method: "POST",
                 body: { owner_id: ownerId },
-                sourceLabel: "GGsel Digiseller Data"
+                sourceLabel: "GGsel Digiseller Data",
+                statusUrl: "{% url 'sync_ggsel_products_status' 'TASK_ID_PLACEHOLDER' %}".replace('TASK_ID_PLACEHOLDER', '')
             });
         });
 
