@@ -48,7 +48,8 @@ ESIMACCESS_API_SECRET = config('ESIMACCESS_API_SECRET', '')
 SECRET_KEY = config("DJANGO_SECRET_KEY")
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+# DEBUG = True
+DEBUG = config("DEBUG", cast=bool, default=False)
 
 ALLOWED_HOSTS = ['37.220.81.77', '127.0.0.1']
 
@@ -188,8 +189,10 @@ MESSAGE_TAGS = {
 
 
 # Celery / Redis configuration
-# CELERY_BROKER_URL       = config("REDIS_URL")
-# CELERY_RESULT_BACKEND   = config("REDIS_RESULT")
+if not DEBUG:
+    CELERY_BROKER_URL       = config("REDIS_URL")
+    CELERY_RESULT_BACKEND   = config("REDIS_RESULT")
+    
 CELERY_ACCEPT_CONTENT   = ['json']
 CELERY_TASK_SERIALIZER  = 'json'
 CELERY_RESULT_SERIALIZER= 'json'
