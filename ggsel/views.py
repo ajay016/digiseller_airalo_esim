@@ -329,14 +329,14 @@ def sync_ggsel_products_status(request, task_id):
             "status": "pending",
             "task_id": task_id,
             "message": "Task is waiting to run",
-        })
+        }, status=status.HTTP_200_OK)
 
     if result.state == "STARTED":
         return Response({
             "status": "started",
             "task_id": task_id,
             "message": "Task is running",
-        })
+        }, status=status.HTTP_200_OK)
 
     if result.state == "SUCCESS":
         return Response({
@@ -344,7 +344,7 @@ def sync_ggsel_products_status(request, task_id):
             "task_id": task_id,
             "message": "GGSEL sync completed successfully",
             "result": result.result,
-        })
+        }, status=status.HTTP_200_OK)
 
     if result.state == "FAILURE":
         return Response({
@@ -357,7 +357,7 @@ def sync_ggsel_products_status(request, task_id):
         "status": result.state.lower(),
         "task_id": task_id,
         "message": f"Task state: {result.state}",
-    })
+    }, status=status.HTTP_200_OK)
 
 
 @api_view(['GET'])

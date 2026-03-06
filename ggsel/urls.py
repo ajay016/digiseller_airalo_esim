@@ -7,6 +7,7 @@ from .import views
 
 urlpatterns = [
     path('sync_ggsel_products/', views.sync_ggsel_products, name='sync_ggsel_products'),
+    path("sync/status/<str:task_id>/", views.sync_ggsel_products_status, name="sync_ggsel_products_status"),
     # path('api/variant_duplicate_texts/', views.variant_duplicate_texts, name='variant_duplicate_texts'),
     
     # # path("webhook-test/", views.digiseller_webhook_test, name="digiseller_webhook_test"),

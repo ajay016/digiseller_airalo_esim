@@ -384,11 +384,9 @@
         function handleSyncRequest({ url, method = 'GET', body = null, sourceLabel = 'Data', statusUrl = null }) {
             lastSyncRequest = { url, method, body, sourceLabel, statusUrl };
 
-            // Set dynamic modal text
             $('#syncModal h5').text(`Syncing ${sourceLabel}`);
             $('#syncModal p.text-muted').text(`Please wait while we update your ${sourceLabel.toLowerCase()}...`);
 
-            // Reset modal state
             $('#sync-loading').removeClass('d-none');
             $('#sync-success').addClass('d-none');
             $('#sync-error').addClass('d-none');
@@ -413,12 +411,9 @@
                     throw new Error(msg);
                 }
 
-                // Check if this is an async task response (has task_id)
                 if (data.task_id) {
-                    // Start polling for task status
                     checkTaskStatus(data.task_id, sourceLabel, statusUrl || url);
                 } else {
-                    // Regular sync completed
                     $('#sync-loading').addClass('d-none');
                     $('#sync-success').removeClass('d-none');
                 }
@@ -431,7 +426,6 @@
             });
         }
 
-        // Airalo sync
         $('#sync-airalo-btn').on('click', function () {
             handleSyncRequest({
                 url: "{% url 'sync_airalo_data' %}",
@@ -440,7 +434,6 @@
             });
         });
 
-        // ESIM Access sync
         $('#sync-esimaccess-btn').on('click', function () {
             handleSyncRequest({
                 url: "{% url 'sync_esimaccess_data' %}",
@@ -450,7 +443,16 @@
             });
         });
 
-        // Digiseller Plati products sync
+        $('#sync-digiseller-btn').on('click', function () {
+            const ownerId = $(this).data('market-id');
+            handleSyncRequest({
+                url: "{% url 'sync_esim_products' %}",
+                method: "POST",
+                body: { owner_id: ownerId },
+                sourceLabel: "Digiseller Data"
+            });
+        });
+
         $('#sync-ggesel-btn').on('click', function () {
             const ownerId = $(this).data('market-id');
             handleSyncRequest({
@@ -462,19 +464,6 @@
             });
         });
 
-        // Digiseller Ggesel Products sync
-        $('#sync-ggesel-btn').on('click', function () {
-            const ownerId = $(this).data('market-id');
-            handleSyncRequest({
-                url: "{% url 'sync_ggsel_products' %}",
-                method: "POST",
-                body: { owner_id: ownerId },
-                sourceLabel: "GGsel Digiseller Data",
-                statusUrl: "{% url 'sync_ggsel_products_status' 'TASK_ID_PLACEHOLDER' %}".replace('TASK_ID_PLACEHOLDER', '')
-            });
-        });
-
-        // Retry sync
         $retryBtn.on('click', function () {
             $syncModal.hide();
             setTimeout(() => handleSyncRequest(lastSyncRequest), 300);
