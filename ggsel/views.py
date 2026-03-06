@@ -322,42 +322,51 @@ def sync_ggsel_products(request):
 @api_view(["GET"])
 @permission_classes([AllowAny])
 def sync_ggsel_products_status(request, task_id):
-    result = AsyncResult(task_id)
+    try:
+        result = AsyncResult(task_id)
 
-    if result.state == "PENDING":
+        if result.state == "PENDING":
+            return Response({
+                "status": "pending",
+                "task_id": task_id,
+                "message": "Task is waiting to run",
+            }, status=status.HTTP_200_OK)
+
+        if result.state == "STARTED":
+            return Response({
+                "status": "started",
+                "task_id": task_id,
+                "message": "Task is running",
+            }, status=status.HTTP_200_OK)
+
+        if result.state == "SUCCESS":
+            return Response({
+                "status": "completed",
+                "task_id": task_id,
+                "message": "GGSEL sync completed successfully",
+                "result": result.result,
+            }, status=status.HTTP_200_OK)
+
+        if result.state == "FAILURE":
+            return Response({
+                "status": "failed",
+                "task_id": task_id,
+                "message": str(result.result),
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
         return Response({
-            "status": "pending",
+            "status": result.state.lower(),
             "task_id": task_id,
-            "message": "Task is waiting to run",
+            "message": f"Task state: {result.state}",
         }, status=status.HTTP_200_OK)
 
-    if result.state == "STARTED":
-        return Response({
-            "status": "started",
-            "task_id": task_id,
-            "message": "Task is running",
-        }, status=status.HTTP_200_OK)
-
-    if result.state == "SUCCESS":
-        return Response({
-            "status": "completed",
-            "task_id": task_id,
-            "message": "GGSEL sync completed successfully",
-            "result": result.result,
-        }, status=status.HTTP_200_OK)
-
-    if result.state == "FAILURE":
+    except Exception as e:
+        logger.exception(f"[sync_ggsel_products_status] task_id={task_id} error: {e}")
         return Response({
             "status": "failed",
             "task_id": task_id,
-            "message": str(result.result),
+            "message": str(e),
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-    return Response({
-        "status": result.state.lower(),
-        "task_id": task_id,
-        "message": f"Task state: {result.state}",
-    }, status=status.HTTP_200_OK)
 
 
 @api_view(['GET'])
