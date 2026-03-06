@@ -240,14 +240,37 @@ def fetch_seller_goods(rows=1000, owner_id=1, max_workers=8):
     # Helper function to fetch a single page
     def fetch_page(page_number):
         try:
-            payload["page"] = page_number
-            resp = requests.post(f"{SELLER_GOODS_URL}?token={token}", json=payload, timeout=20)
+            page_payload = {
+                "id_seller": SELLER_ID,
+                "order_col": "name",
+                "order_dir": "asc",
+                "rows": rows,
+                "page": page_number,
+                "currency": "RUR",
+                "lang": "en-US",
+                "show_hidden": 1,
+                "owner_id": owner_id,
+            }
+
+            logger.warning(f"[fetch_page] HIT page={page_number}")
+            logger.info(f"[fetch_page] payload={page_payload}")
+
+            resp = requests.post(
+                f"{SELLER_GOODS_URL}?token={token}",
+                json=page_payload,
+                timeout=20
+            )
+
+            logger.warning(f"[fetch_page] page={page_number} status={resp.status_code}")
+            logger.info(f"[fetch_page] page={page_number} raw response preview={resp.text[:500]}")
+
             resp.raise_for_status()
             text = resp.content.decode("utf-8-sig")
             raw = json.loads(text)
-            rows = raw.get("rows", [])
-            logger.info(f"✅ Page {page_number} fetched ({len(rows)} items)")
-            return rows
+            page_rows = raw.get("rows", [])
+
+            logger.warning(f"[fetch_page] page={page_number} fetched count={len(page_rows)}")
+            return page_rows
         except Exception as e:
             logger.exception(f"⚠️ Error fetching page {page_number}: {e}")
             GgselFailedEntry.objects.create(
@@ -375,6 +398,7 @@ def sync_ggsel_products(request):
 
         raw_products = fetch_seller_goods(owner_id=owner_id)
         logger.info(f"[sync_ggsel_products] total fetched={len(raw_products)}")
+        print(f"Raw GGSSEL products from syncing: {raw_products}")
 
         esim_products = filter_esim_products(raw_products)
         logger.info(f"[sync_ggsel_products] filtered eSIM products={len(esim_products)}")
