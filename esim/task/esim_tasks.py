@@ -21,6 +21,19 @@ from esim.models import (
 )
 from digiseller.views import get_digiseller_token
 
+from task.esimaccess_delivery_email import (
+    EsimAccessSimEmailRow,
+    build_esimaccess_delivery_email,
+    send_esimaccess_delivery_email,
+)
+
+
+
+
+
+
+
+
 logger = logging.getLogger(__name__)
 
 # Configuration
@@ -259,95 +272,97 @@ def query_esimaccess_order(order_no: str) -> dict:
     return None
 
 
-def save_esimaccess_sims(airalo_order, query_response):
-    """Save eSIMs from eSIM Access response to AiraloSim and ESIMAccessSIM models"""
+def save_esimaccess_sims(esimaccess_order, query_response):
+    """Save eSIMs from eSIM Access response to ESIMAccessSIM model (idempotent)"""
     esim_list = query_response.get("esimList", [])
     saved_count = 0
-    
+
     for sim_data in esim_list:
-        # Check if SIM already exists
-        iccid = sim_data.get("iccid", "")
-        if AiraloSim.objects.filter(iccid=iccid).exists():
-            logger.info(f"SIM with ICCID {iccid} already exists, skipping")
+        iccid = (sim_data.get("iccid") or "").strip()
+        if not iccid:
             continue
-        
-        # Parse the activation code (AC) which contains SM-DP+ address and activation code
-        ac = sim_data.get("ac", "")
+
+        # Parse AC: LPA:1$smdp_address$activation_code
+        ac = sim_data.get("ac", "") or ""
         smdp_address = ""
         activation_code = ""
-        
-        if ac and ac.startswith("LPA:"):
-            # Format: LPA:1$smdp_address$activation_code
+        if ac.startswith("LPA:"):
             parts = ac.split("$")
             if len(parts) >= 3:
                 smdp_address = parts[1]
                 activation_code = parts[2]
-        
-        # Calculate expiry date
+
+        # Parse expiredTime
         expired_time = None
-        if sim_data.get("expiredTime"):
+        raw_exp = sim_data.get("expiredTime")
+        if raw_exp:
             try:
-                # Try ISO format first
-                expired_time = datetime.strptime(
-                    sim_data["expiredTime"], 
-                    "%Y-%m-%dT%H:%M:%S%z"
-                )
-            except:
+                expired_time = datetime.strptime(raw_exp, "%Y-%m-%dT%H:%M:%S%z")
+            except Exception:
                 try:
-                    # Try without timezone
-                    expired_time = datetime.strptime(
-                        sim_data["expiredTime"], 
-                        "%Y-%m-%d %H:%M:%S"
-                    )
+                    expired_time = datetime.strptime(raw_exp, "%Y-%m-%d %H:%M:%S")
                     if timezone.is_naive(expired_time):
                         expired_time = timezone.make_aware(expired_time)
-                except:
-                    logger.warning(f"Could not parse expiredTime: {sim_data.get('expiredTime')}")
-        
-        # Get package info
-        package_list = sim_data.get("packageList", [])
-        package_name = ""
-        if package_list:
-            package_name = package_list[0].get("packageName", "")
-        
-        # Create AiraloSim record (for compatibility with existing system)
+                except Exception:
+                    logger.warning(f"Could not parse expiredTime: {raw_exp}")
+                    expired_time = None
+
+        package_list = sim_data.get("packageList", []) or []
+        package_name = package_list[0].get("packageName", "") if package_list else ""
+
+        esim_tran_no = sim_data.get("esimTranNo", "") or ""
+
         with transaction.atomic():
-            airalo_sim = AiraloSim.objects.create(
-                airalo_order=airalo_order,
-                sim_id=sim_data.get("esimTranNo", 0),
+            obj, created = ESIMAccessSIM.objects.update_or_create(
                 iccid=iccid,
-                lpa=activation_code,
-                qrcode=sim_data.get("qrCode", ""),
-                qrcode_url=sim_data.get("qrCodeUrl", ""),
-                direct_apple_installation_url="",
-                apn_type="",
-                apn_value=sim_data.get("apn", ""),
-                is_roaming=False,
-                raw_payload=sim_data,
+                defaults={
+                    "esimaccess_order": esimaccess_order,
+                    "sim_id": esim_tran_no,
+                    "esim_tran_no": esim_tran_no,
+                    "imsi": sim_data.get("imsi", ""),
+                    "lpa": activation_code,
+                    "qrcode": sim_data.get("qrCode", ""),
+                    "qrcode_url": sim_data.get("qrCodeUrl", ""),
+                    "direct_apple_installation_url": "",
+                    "smdp_address": smdp_address,
+                    "activation_code": activation_code,
+                    "confirmation_code": sim_data.get("confirmationCode", ""),
+                    "apn_type": "",
+                    "apn_value": sim_data.get("apn", ""),
+                    "msisdn": sim_data.get("msisdn", ""),
+                    "is_roaming": False,
+                    "total_volume": sim_data.get("totalVolume", 0) or 0,
+                    "used_volume": sim_data.get("usedVolume", 0) or 0,
+                    "total_duration": sim_data.get("totalDuration", 0) or 0,
+                    "duration_unit": sim_data.get("durationUnit", "DAY") or "DAY",
+                    "package_name": package_name,
+                    "smdp_status": sim_data.get("smdpStatus", ""),
+                    "active_type": sim_data.get("activeType"),
+                    "data_type": sim_data.get("dataType"),
+                    "expired_at": expired_time,
+
+                    "installation_guides": {
+                        "ac": ac,
+                        "qrCodeUrl": sim_data.get("qrCodeUrl", ""),
+                        "shortUrl": sim_data.get("shortUrl", ""),
+                        "esimTranNo": sim_data.get("esimTranNo", ""),
+                        "transactionId": sim_data.get("transactionId", ""),
+                        "smsStatus": sim_data.get("smsStatus", ""),
+                        "activeType": sim_data.get("activeType", ""),
+                        "dataType": sim_data.get("dataType", ""),
+                        "orderUsage": sim_data.get("orderUsage", 0),
+                    },
+
+                    "raw_payload": sim_data,
+                }
             )
-            
-            # Create ESIMAccessSIM record for eSIM Access specific fields
-            ESIMAccessSIM.objects.create(
-                airalo_sim=airalo_sim,
-                esim_tran_no=sim_data.get("esimTranNo", ""),
-                imsi=sim_data.get("imsi", ""),
-                smdp_address=smdp_address,
-                activation_code=activation_code,
-                confirmation_code=sim_data.get("confirmationCode", ""),
-                msisdn=sim_data.get("msisdn", ""),
-                total_volume=sim_data.get("totalVolume", 0),
-                total_duration=sim_data.get("totalDuration", 0),
-                duration_unit=sim_data.get("durationUnit", "DAY"),
-                package_name=package_name,
-                smdp_status=sim_data.get("smdpStatus", ""),
-                active_type=sim_data.get("activeType"),
-                data_type=sim_data.get("dataType"),
-                raw_payload=sim_data
-            )
-        
-        saved_count += 1
-        logger.info(f"✅ Saved eSIM with ICCID: {iccid}")
-    
+
+        if created:
+            saved_count += 1
+            logger.info(f"✅ Saved ESIMAccessSIM ICCID: {iccid}")
+        else:
+            logger.info(f"↩️ Updated ESIMAccessSIM ICCID: {iccid}")
+
     return saved_count
 
 
@@ -378,7 +393,7 @@ def deliver_unique_code(code: str):
 
 
 @shared_task(bind=True, max_retries=10, default_retry_delay=RETRY_DELAY)
-def fetch_esimaccess_details_async(self, order_no, airalo_order_id, digiseller_order_id):
+def fetch_esimaccess_details_async(self, order_no, esimaccess_order_id, digiseller_order_id):
     """Async task to fetch eSIM details for an eSIM Access order"""
     logger.info(f"Fetching eSIM details for order {order_no}")
     
@@ -388,16 +403,71 @@ def fetch_esimaccess_details_async(self, order_no, airalo_order_id, digiseller_o
             query_response = query_esimaccess_order(order_no)
             
             if query_response and query_response.get("esimList"):
-                airalo_order = AiraloOrder.objects.get(id=airalo_order_id)
-                saved_count = save_esimaccess_sims(airalo_order, query_response)
-                
+                esimaccess_order = ESIMAccessOrder.objects.get(id=esimaccess_order_id)
+                saved_count = save_esimaccess_sims(esimaccess_order, query_response)
+
                 logger.info(f"✅ Successfully fetched {saved_count} eSIMs for order {order_no} on attempt {attempt}")
-                
-                # Update Digiseller order if needed
+
+                with transaction.atomic():
+                    order = DigisellerOrder.objects.select_for_update().select_related(
+                        "airalo_package", "airalo_package__operator", "airalo_package__operator__country"
+                    ).get(id=digiseller_order_id)
+
+                    if order.esim_email_sent:
+                        logger.info("📧 [ESIMAccessEmail] already sent digiseller_order_id=%s", digiseller_order_id)
+                        customer_email = ""
+                    else:
+                        customer_email = (order.buyer_email or "").strip()
+                        if customer_email:
+                            order.esim_email_sent = True
+                            order.save(update_fields=["esim_email_sent"])
+
+                if customer_email:
+                    sims_qs = ESIMAccessSIM.objects.filter(esimaccess_order=esimaccess_order).order_by("-created_at")[:50]
+
+                    sims_for_email = []
+                    for s in sims_qs:
+                        guides = s.installation_guides or {}
+                        sims_for_email.append(
+                            EsimAccessSimEmailRow(
+                                iccid=s.iccid or "",
+                                qrcode_url=s.qrcode_url or "",
+                                short_url=guides.get("shortUrl", "") or "",
+                                smdp_address=s.smdp_address or "",
+                                activation_code=s.activation_code or "",
+                            )
+                        )
+
+                    country = ""
+                    try:
+                        country = order.airalo_package.operator.country.title
+                    except Exception:
+                        country = ""
+
+                    subject, text, html = build_esimaccess_delivery_email(
+                        customer_email=customer_email,
+                        customer_name=customer_email,
+                        package_title=order.airalo_package.title,
+                        country=country,
+                        sims=sims_for_email,
+                        sharing_access_code=None,
+                        sharing_link=None,
+                    )
+
+                    send_esimaccess_delivery_email(
+                        to_email=customer_email,
+                        subject=subject,
+                        text=text,
+                        html=html,
+                    )
+                else:
+                    logger.warning("📧 [ESIMAccessEmail] No buyer_email found for digiseller_order_id=%s", digiseller_order_id)
+
+                # Mark delivered status (optional / keep your existing behavior)
                 DigisellerOrder.objects.filter(id=digiseller_order_id).update(
                     digiseller_transaction_status=2
                 )
-                
+
                 return {"success": True, "attempt": attempt, "saved": saved_count}
             
             logger.info(f"Attempt {attempt}/{max_attempts}: No eSIMs yet for order {order_no}")
@@ -416,7 +486,7 @@ def fetch_esimaccess_details_async(self, order_no, airalo_order_id, digiseller_o
             digiseller_order_id=digiseller_order_id,
             order_no=order_no,
             package_code="",
-            payload={"order_no": order_no, "airalo_order_id": airalo_order_id},
+            payload={"order_no": order_no, "esimaccess_order_id": esimaccess_order_id},
             error_message="Failed to fetch eSIM details after max attempts",
             reason="Max attempts reached",
             status=3  # Permanent Failure
@@ -454,10 +524,15 @@ def purchase_esimaccess_sim(self, digiseller_order_id):
         order.error_message = f"Not an eSIM Access package: {order.airalo_package.provider}"
         order.save(update_fields=["status", "error_message"])
         return
+    
+    with transaction.atomic():
+        order = DigisellerOrder.objects.select_for_update().get(pk=digiseller_order_id)
+        if order.status in ("processing", "completed"):
+            logger.info(f"Order {digiseller_order_id} already {order.status}, skipping duplicate run.")
+            return
 
-    # Update order status
-    order.status = "processing"
-    order.save(update_fields=["status"])
+        order.status = "processing"
+        order.save(update_fields=["status"])
 
     package_code = order.airalo_package.package_id
     quantity = int(order.quantity)
@@ -499,56 +574,90 @@ def purchase_esimaccess_sim(self, digiseller_order_id):
         
         logger.info(f"✅ eSIM Access order placed successfully with orderNo: {order_no}")
         
-        # Step 3: Create AiraloOrder record (for compatibility with existing system)
+        # Step 3: Create/Update ESIMAccessOrder record (ONLY)
         with transaction.atomic():
-            airalo_order = AiraloOrder.objects.create(
-                airalo_id=0,  # Not applicable for eSIM Access
-                code=order_no,
-                currency="USD",
-                package_id=package_code,
-                quantity=quantity,
-                type="sim",
-                description=description,
-                package_title=order.airalo_package.title,
-                data=order.airalo_package.data or "",
-                price=order.airalo_package.price,
-                created_at_api=timezone.now(),
-                manual_installation="",
-                qrcode_installation="",
-                installation_guides={},
-                net_price=float(api_price_cents) / 100,  # Convert cents to dollars/euros
-                raw_payload=order_response,
-            )
-            
-            # Create ESIMAccessOrder record for eSIM Access specific data
-            esimaccess_order = ESIMAccessOrder.objects.create(
-                esimaccess_id=0,
+            esimaccess_order, _created = ESIMAccessOrder.objects.update_or_create(
                 order_no=order_no,
-                transaction_id=transaction_id,
-                currency="USD",
-                package_id=package_code,
-                quantity=quantity,
-                type="sim",
-                description=description,
-                package_title=order.airalo_package.title,
-                data=order.airalo_package.data or "",
-                price=order.airalo_package.price,
-                net_price=float(api_price_cents) / 100,
-                status="completed",
-                created_at_api=timezone.now(),
-                raw_payload=order_response,
+                defaults={
+                    "esimaccess_id": None,
+                    "transaction_id": transaction_id,
+                    "currency": "USD",
+                    "package_id": package_code,
+                    "quantity": quantity,
+                    "type": "sim",
+                    "description": description,
+                    "package_title": order.airalo_package.title,
+                    "data": order.airalo_package.data or "",
+                    "price": order.airalo_package.price,
+                    "net_price": float(api_price_cents) / 100,
+                    "status": "completed",
+                    "created_at_api": timezone.now(),
+                    "raw_payload": order_response,
+                }
             )
         
-        # Link the AiraloOrder to the DigisellerOrder
-        order.airalo_order = airalo_order
-        order.save(update_fields=["airalo_order"])
+        # Link the ESIMAccessOrder to the DigisellerOrder
+        order.esimaccess_order = esimaccess_order
+        order.save(update_fields=["esimaccess_order"])
         
         # Step 4: Try to query eSIM details immediately
         try:
             query_response = query_esimaccess_order(order_no)
             if query_response and query_response.get("esimList"):
-                saved_count = save_esimaccess_sims(airalo_order, query_response)
+                saved_count = save_esimaccess_sims(esimaccess_order, query_response)
                 logger.info(f"✅ Immediately fetched {saved_count} eSIMs for order {order_no}")
+                
+                with transaction.atomic():
+                    order = DigisellerOrder.objects.select_for_update().get(pk=digiseller_order_id)
+                    if order.esim_email_sent:
+                        logger.info("📧 [ESIMAccessEmail] already sent digiseller_order_id=%s", digiseller_order_id)
+                        customer_email = ""
+                    else:
+                        customer_email = (order.buyer_email or "").strip()
+                        if customer_email:
+                            order.esim_email_sent = True
+                            order.save(update_fields=["esim_email_sent"])
+
+                if customer_email:
+                    sims_qs = ESIMAccessSIM.objects.filter(esimaccess_order=esimaccess_order).order_by("-created_at")[:50]
+
+                    sims_for_email = []
+                    for s in sims_qs:
+                        guides = s.installation_guides or {}
+                        sims_for_email.append(
+                            EsimAccessSimEmailRow(
+                                iccid=s.iccid or "",
+                                qrcode_url=s.qrcode_url or "",
+                                short_url=guides.get("shortUrl", "") or "",
+                                smdp_address=s.smdp_address or "",
+                                activation_code=s.activation_code or "",
+                            )
+                        )
+
+                    country = ""
+                    try:
+                        country = order.airalo_package.operator.country.title
+                    except Exception:
+                        country = ""
+
+                    subject, text, html = build_esimaccess_delivery_email(
+                        customer_email=customer_email,
+                        customer_name=customer_email,
+                        package_title=order.airalo_package.title,
+                        country=country,
+                        sims=sims_for_email,
+                        sharing_access_code=None,
+                        sharing_link=None,
+                    )
+
+                    send_esimaccess_delivery_email(
+                        to_email=customer_email,
+                        subject=subject,
+                        text=text,
+                        html=html,
+                    )
+                else:
+                    logger.warning("📧 [ESIMAccessEmail] No buyer_email found for digiseller_order_id=%s", order.id)
                 
                 # Mark order as completed
                 order.status = "completed"
@@ -583,11 +692,7 @@ def purchase_esimaccess_sim(self, digiseller_order_id):
                     # Still schedule background fetch - we can retry deliver later
                 
                 # Schedule background task to fetch eSIMs later
-                fetch_esimaccess_details_async.delay(
-                    order_no, 
-                    airalo_order.id, 
-                    digiseller_order_id
-                )
+                fetch_esimaccess_details_async.delay(order_no, esimaccess_order.id, digiseller_order_id)
                 
                 return {"success": True, "order_no": order_no, "sims_fetched": False}
                 
@@ -607,11 +712,7 @@ def purchase_esimaccess_sim(self, digiseller_order_id):
                 logger.error(f"❌ Failed to call Digiseller deliver endpoint: {exc}")
             
             # Schedule background fetch
-            fetch_esimaccess_details_async.delay(
-                order_no, 
-                airalo_order.id, 
-                digiseller_order_id
-            )
+            fetch_esimaccess_details_async.delay(order_no, esimaccess_order.id, digiseller_order_id)
             
             return {"success": True, "order_no": order_no, "sims_fetched": False}
             

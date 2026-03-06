@@ -473,6 +473,8 @@ class DigisellerOrder(models.Model):
     order_info_received   = models.BooleanField(default=False)
     payment_verified      = models.BooleanField(default=False)
     task_enqueued         = models.BooleanField(default=False)
+    
+    esim_email_sent = models.BooleanField(default=False)
 
     created_at            = models.DateTimeField(default=timezone.now)
     updated_at            = models.DateTimeField(auto_now=True)
@@ -744,6 +746,8 @@ class ESIMAccessSIM(models.Model):
     smdp_status = models.CharField(max_length=50, blank=True, null=True)
     active_type = models.IntegerField(null=True, blank=True)
     data_type = models.IntegerField(null=True, blank=True)
+    
+    installation_guides = models.JSONField(blank=True, null=True, default=dict)
     
     # Raw data
     raw_payload = models.JSONField(default=dict, blank=True)

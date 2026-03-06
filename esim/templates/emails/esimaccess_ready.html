@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Your eSIM is Ready</title>
+</head>
+<body style="margin: 0; padding: 0; background-color: #f4f6f8; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; -webkit-font-smoothing: antialiased; color: #333333;">
+
+    <table border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; margin-top: 40px; margin-bottom: 40px; box-shadow: 0 4px 10px rgba(0,0,0,0.05);">
+
+        <tr>
+            <td align="center" style="padding: 30px 0; background-color: #ffffff; border-bottom: 2px solid #006a4c;">
+                <h1 style="margin: 0; font-size: 24px; color: #006a4c; text-transform: uppercase; letter-spacing: 1px;">{{ company_name }}</h1>
+            </td>
+        </tr>
+
+        <tr>
+            <td style="padding: 40px 30px;">
+                <h2 style="font-size: 20px; font-weight: 600; color: #1a1a1a; margin-top: 0; margin-bottom: 15px;">
+                    Your eSIM is Ready! 🌍
+                </h2>
+
+                <p style="font-size: 15px; line-height: 1.6; color: #555555; margin-bottom: 25px;">
+                    Hello {{ customer_name }},<br>
+                    Great news! Your <strong>{{ package_title }}</strong>{% if country %} eSIM for <strong>{{ country }}</strong>{% endif %} has been successfully generated and is ready for activation.
+                </p>
+
+                {% if sharing_access_code %}
+                <div style="background-color: #f0fdf4; border: 1px solid #dcfce7; border-radius: 8px; padding: 25px; text-align: center; margin-bottom: 30px;">
+                    <p style="font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: #666; margin: 0 0 10px 0; font-weight: 600;">Your Activation Code</p>
+                    <div style="font-size: 18px; font-weight: 700; color: #006a4c; letter-spacing: .5px; font-family: monospace; word-break: break-all;">
+                        {{ sharing_access_code }}
+                    </div>
+                </div>
+                {% endif %}
+
+                <div style="margin-bottom: 30px;">
+                    <p style="font-size: 14px; font-weight: 600; color: #333; margin-bottom: 12px;">Your eSIM Details:</p>
+
+                    {% for sim in sims %}
+                    <div style="border: 1px solid #eeeeee; border-radius: 10px; padding: 16px; margin-bottom: 12px; background: #fafafa;">
+                        <div style="font-size: 13px; color: #111827; margin-bottom: 6px;">
+                            <strong>ICCID:</strong> <span style="font-family: monospace;">{{ sim.iccid }}</span>
+                        </div>
+
+                        {% if sim.qrcode_url %}
+                        <div style="font-size: 13px; color: #111827; margin-bottom: 6px;">
+                            <strong>QR Code URL:</strong> <a href="{{ sim.qrcode_url }}" target="_blank" style="color: #006a4c; text-decoration: none;">Open</a>
+                        </div>
+                        {% endif %}
+
+                        {% if sim.short_url %}
+                        <div style="font-size: 13px; color: #111827; margin-bottom: 6px;">
+                            <strong>Short URL:</strong> <a href="{{ sim.short_url }}" target="_blank" style="color: #006a4c; text-decoration: none;">Open</a>
+                        </div>
+                        {% endif %}
+
+                        {% if sim.smdp_address %}
+                        <div style="font-size: 13px; color: #111827; margin-bottom: 6px;">
+                            <strong>SM-DP+ Address:</strong> <span style="font-family: monospace;">{{ sim.smdp_address }}</span>
+                        </div>
+                        {% endif %}
+
+                        {% if sim.activation_code %}
+                        <div style="font-size: 13px; color: #111827;">
+                            <strong>Activation Code:</strong> <span style="font-family: monospace; word-break: break-all;">{{ sim.activation_code }}</span>
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+
+                <div style="margin-bottom: 30px;">
+                    <p style="font-size: 14px; font-weight: 600; color: #333; margin-bottom: 12px;">Next Steps:</p>
+                    <table border="0" cellpadding="0" cellspacing="0" width="100%">
+                        <tr>
+                            <td width="24" valign="top" style="padding-bottom: 12px;">
+                                <div style="background-color: #006a4c; color: white; width: 20px; height: 20px; border-radius: 50%; text-align: center; font-size: 12px; line-height: 20px; font-weight: bold;">1</div>
+                            </td>
+                            <td style="padding-bottom: 12px; padding-left: 12px; font-size: 14px; color: #555; line-height: 1.5;">
+                                Install the eSIM using the QR Code URL (recommended) or manually using SM-DP+ + Activation Code.
+                            </td>
+                        </tr>
+                        <tr>
+                            <td width="24" valign="top" style="padding-bottom: 12px;">
+                                <div style="background-color: #006a4c; color: white; width: 20px; height: 20px; border-radius: 50%; text-align: center; font-size: 12px; line-height: 20px; font-weight: bold;">2</div>
+                            </td>
+                            <td style="padding-bottom: 12px; padding-left: 12px; font-size: 14px; color: #555; line-height: 1.5;">
+                                Follow the on-screen instructions on your phone to complete setup.
+                            </td>
+                        </tr>
+                        <tr>
+                            <td width="24" valign="top">
+                                <div style="background-color: #006a4c; color: white; width: 20px; height: 20px; border-radius: 50%; text-align: center; font-size: 12px; line-height: 20px; font-weight: bold;">3</div>
+                            </td>
+                            <td style="padding-left: 12px; font-size: 14px; color: #555; line-height: 1.5;">
+                                Keep this email for your records in case you need to reinstall the eSIM.
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+
+                {% if sharing_link %}
+                <div style="text-align: center; margin-bottom: 30px;">
+                    <a href="{{ sharing_link }}" target="_blank" style="background-color: #006a4c; color: #ffffff; font-size: 16px; font-weight: bold; text-decoration: none; padding: 14px 30px; border-radius: 6px; display: inline-block; box-shadow: 0 4px 6px rgba(0, 106, 76, 0.2);">
+                        Go To My eSIM &rarr;
+                    </a>
+                </div>
+                {% endif %}
+
+                <p style="font-size: 13px; color: #888; text-align: center; line-height: 1.5; margin-top: 30px; border-top: 1px solid #eeeeee; padding-top: 20px;">
+                    Need help? Just reply to this email and our support team will assist you.
+                </p>
+            </td>
+        </tr>
+
+        <tr>
+            <td align="center" style="background-color: #f8f9fa; padding: 20px; border-top: 1px solid #eeeeee;">
+                <p style="font-size: 12px; color: #999999; margin: 0;">
+                    &copy; {{ year }} {{ company_name }}. All rights reserved.<br>
+                    Need help? Contact <a href="mailto:{{ support_email }}" style="color: #006a4c; text-decoration: none;">Support</a>
+                </p>
+            </td>
+        </tr>
+    </table>
+
+</body>
+</html>
