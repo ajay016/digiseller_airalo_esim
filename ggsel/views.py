@@ -297,7 +297,7 @@ def save_product_with_variants(prod_data):
 @api_view(["POST"])
 @permission_classes([AllowAny])
 def sync_ggsel_products(request):
-    from ggsel.tasks.task import sync_ggsel_products_task
+    from tasks import sync_ggsel_products_task
     try:
         owner_id = request.data.get("owner_id", 1)
         task = sync_ggsel_products_task.delay(owner_id=owner_id)
