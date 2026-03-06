@@ -52,10 +52,6 @@ def sync_ggsel_products_task(self, owner_id=1):
     saved_ids = []
 
     for index, prod in enumerate(esim_products, start=1):
-        logger.warning(
-            f"[sync_ggsel_products_task] processing {index}/{len(esim_products)} "
-            f"id_goods={prod.get('id_goods')} name={prod.get('name_goods')}"
-        )
         try:
             saved = save_product_with_variants(prod)
             saved_ids.append(saved.id_goods)
