@@ -190,10 +190,13 @@ def fetch_seller_goods(rows=1000, owner_id=1, max_workers=8):
     Fetch all seller goods from Digiseller API concurrently.
     Returns a list of all product rows.
     """
+    logger.info(f"[fetch_seller_goods] START owner_id={owner_id}, rows={rows}, max_workers={max_workers}")
     token = get_ggsel_token()
     all_products = []
     page = 1
     total_pages = 1
+    
+    logger.info(f"[fetch_seller_goods] token acquired: {token[:8]}..." if token else "[fetch_seller_goods] token is empty/null")
 
     # First call just to get total pages
     try:
@@ -209,9 +212,18 @@ def fetch_seller_goods(rows=1000, owner_id=1, max_workers=8):
             "show_hidden": 1,
             "owner_id": owner_id,
         }
+        logger.info(f"[fetch_seller_goods] first page payload: {payload}")
+        
         resp = requests.post(f"{SELLER_GOODS_URL}?token={token}", json=payload, timeout=20)
+        
+        logger.info(f"[fetch_seller_goods] first page response status={resp.status_code}")
+        logger.info(f"[fetch_seller_goods] first page raw response preview={resp.text[:500]}")
+        
         resp.raise_for_status()
         text = resp.content.decode("utf-8-sig")
+        
+        logger.info(f"[fetch_seller_goods] first page decoded text preview={text[:500]}")
+        
         raw = json.loads(text)
 
         total_pages = int(raw.get("pages", 1))
@@ -222,7 +234,7 @@ def fetch_seller_goods(rows=1000, owner_id=1, max_workers=8):
         logger.info(f"✅ Page 1 fetched with {len(first_page_rows)} items")
 
     except Exception as e:
-        logger.exception(f"Initial page fetch failed: {e}")
+        logger.exception(f"[fetch_seller_goods] Initial page fetch failed: {e}")
         return []
 
     # Helper function to fetch a single page
@@ -354,32 +366,47 @@ def save_product_with_variants(prod_data):
 @api_view(["POST"])
 @permission_classes([AllowAny])
 def sync_ggsel_products(request):
+    logger.info("[sync_ggsel_products] START")
+    logger.info(f"[sync_ggsel_products] request.data={request.data}")
+
     try:
         owner_id = request.data.get("owner_id", 1)
-        logger.info(f"Starting product sync for owner_id={owner_id}")
+        logger.info(f"[sync_ggsel_products] owner_id={owner_id}")
 
         raw_products = fetch_seller_goods(owner_id=owner_id)
-        logger.info(f"✅ Total fetched: {len(raw_products)}")
+        logger.info(f"[sync_ggsel_products] total fetched={len(raw_products)}")
 
         esim_products = filter_esim_products(raw_products)
-        logger.info(f"📦 Filtered eSIM products: {len(esim_products)}")
+        logger.info(f"[sync_ggsel_products] filtered eSIM products={len(esim_products)}")
+
+        if esim_products:
+            logger.info(
+                f"[sync_ggsel_products] first 10 esim product ids="
+                f"{[p.get('id_goods') for p in esim_products[:10]]}"
+            )
 
         saved_ids = []
-        for prod in esim_products:
+        for index, prod in enumerate(esim_products, start=1):
+            logger.info(
+                f"[sync_ggsel_products] processing {index}/{len(esim_products)} "
+                f"id_goods={prod.get('id_goods')} name={prod.get('name_goods')}"
+            )
             try:
                 saved = save_product_with_variants(prod)
                 saved_ids.append(saved.id_goods)
+                logger.info(f"[sync_ggsel_products] saved product id_goods={saved.id_goods}")
             except Exception as e:
-                logger.exception(f"save_product error (id {prod.get('id_goods')}): {e}")
+                logger.exception(f"[sync_ggsel_products] save_product error (id {prod.get('id_goods')}): {e}")
                 GgselFailedEntry.objects.create(
                     reason=f"save_product error (id {prod.get('id_goods')}): {e}",
                     data=prod,
                 )
 
+        logger.info(f"[sync_ggsel_products] END success saved_count={len(saved_ids)}")
         return Response({"saved_product_ids": saved_ids}, status=status.HTTP_201_CREATED)
 
     except Exception as e:
-        logger.exception(f"Sync failed: {e}")
+        logger.exception(f"[sync_ggsel_products] Sync failed: {e}")
         return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
