@@ -324,24 +324,23 @@ def sync_ggsel_products(request):
 def sync_ggsel_products_status(request, task_id):
     try:
         result = AsyncResult(task_id)
+        task_state = result.state
 
-        state = result.state
-
-        if state == "PENDING":
+        if task_state == "PENDING":
             return Response({
                 "status": "pending",
                 "task_id": task_id,
                 "message": "Task is waiting to run",
             }, status=status.HTTP_200_OK)
 
-        if state == "STARTED":
+        if task_state == "STARTED":
             return Response({
                 "status": "started",
                 "task_id": task_id,
                 "message": "Task is running",
             }, status=status.HTTP_200_OK)
 
-        if state == "SUCCESS":
+        if task_state == "SUCCESS":
             return Response({
                 "status": "completed",
                 "task_id": task_id,
@@ -349,7 +348,7 @@ def sync_ggsel_products_status(request, task_id):
                 "result": result.result,
             }, status=status.HTTP_200_OK)
 
-        if state == "FAILURE":
+        if task_state == "FAILURE":
             return Response({
                 "status": "failed",
                 "task_id": task_id,
@@ -357,9 +356,9 @@ def sync_ggsel_products_status(request, task_id):
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
         return Response({
-            "status": state.lower(),
+            "status": task_state.lower(),
             "task_id": task_id,
-            "message": f"Task state: {state}",
+            "message": f"Task state: {task_state}",
         }, status=status.HTTP_200_OK)
 
     except Exception as e:
