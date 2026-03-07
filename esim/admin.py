@@ -551,3 +551,220 @@ class AiraloVoucherCodeAdmin(admin.ModelAdmin):
             "fields": ("created_at",),
         }),
     )
+    
+    
+@admin.register(ESIMAccessPackage)
+class ESIMAccessPackageAdmin(admin.ModelAdmin):
+    list_display = (
+        'id',
+        'package_id',
+        'name',
+        'country',
+        'operator',
+        'created_at',
+        'updated_at',
+    )
+    search_fields = (
+        'package_id',
+        'name',
+        'country',
+        'operator',
+    )
+    list_filter = (
+        'country',
+        'operator',
+        'created_at',
+        'updated_at',
+    )
+    readonly_fields = (
+        'created_at',
+        'updated_at',
+        'raw_data',
+    )
+    ordering = ('-created_at',)
+
+
+@admin.register(ESIMAccessFailedPackage)
+class ESIMAccessFailedPackageAdmin(admin.ModelAdmin):
+    list_display = (
+        'id',
+        'short_reason',
+        'timestamp',
+        'created_at',
+        'updated_at',
+    )
+    search_fields = (
+        'reason',
+    )
+    list_filter = (
+        'timestamp',
+        'created_at',
+        'updated_at',
+    )
+    readonly_fields = (
+        'timestamp',
+        'created_at',
+        'updated_at',
+        'data',
+    )
+    ordering = ('-created_at',)
+
+    @admin.display(description='Reason')
+    def short_reason(self, obj):
+        if not obj.reason:
+            return '-'
+        return obj.reason[:80]
+
+
+class ESIMAccessSIMInline(admin.TabularInline):
+    model = ESIMAccessSIM
+    extra = 0
+    fields = (
+        'sim_id',
+        'iccid',
+        'status',
+        'package_name',
+        'msisdn',
+        'activated_at',
+        'expired_at',
+    )
+    readonly_fields = (
+        'sim_id',
+        'iccid',
+        'status',
+        'package_name',
+        'msisdn',
+        'activated_at',
+        'expired_at',
+        'created_at',
+        'updated_at',
+    )
+    show_change_link = True
+
+
+@admin.register(ESIMAccessOrder)
+class ESIMAccessOrderAdmin(admin.ModelAdmin):
+    list_display = (
+        'id',
+        'order_no',
+        'esimaccess_id',
+        'package_id',
+        'package_title',
+        'quantity',
+        'price',
+        'net_price',
+        'currency',
+        'status',
+        'created_at',
+    )
+    search_fields = (
+        'order_no',
+        'transaction_id',
+        'package_id',
+        'package_title',
+        'description',
+        'esimaccess_id',
+    )
+    list_filter = (
+        'status',
+        'currency',
+        'type',
+        'created_at',
+        'updated_at',
+        'created_at_api',
+    )
+    readonly_fields = (
+        'created_at_api',
+        'created_at',
+        'updated_at',
+        'raw_payload',
+        'installation_guides',
+    )
+    ordering = ('-created_at',)
+    inlines = [ESIMAccessSIMInline]
+
+
+@admin.register(ESIMAccessSIM)
+class ESIMAccessSIMAdmin(admin.ModelAdmin):
+    list_display = (
+        'id',
+        'sim_id',
+        'iccid',
+        'esimaccess_order',
+        'package_name',
+        'status',
+        'msisdn',
+        'is_roaming',
+        'activated_at',
+        'expired_at',
+        'created_at',
+    )
+    search_fields = (
+        'sim_id',
+        'iccid',
+        'imsi',
+        'esim_tran_no',
+        'msisdn',
+        'package_name',
+        'activation_code',
+        'smdp_address',
+        'esimaccess_order__order_no',
+    )
+    list_filter = (
+        'status',
+        'is_roaming',
+        'duration_unit',
+        'apn_type',
+        'created_at',
+        'updated_at',
+        'activated_at',
+        'expired_at',
+    )
+    readonly_fields = (
+        'created_at',
+        'updated_at',
+        'raw_payload',
+        'installation_guides',
+    )
+    autocomplete_fields = ('esimaccess_order',)
+    ordering = ('-created_at',)
+
+
+@admin.register(ESIMAccessFailedOrder)
+class ESIMAccessFailedOrderAdmin(admin.ModelAdmin):
+    list_display = (
+        'id',
+        'order_no',
+        'package_code',
+        'digiseller_order',
+        'status',
+        'retry_count',
+        'last_retry_at',
+        'timestamp',
+        'created_at',
+    )
+    search_fields = (
+        'order_no',
+        'package_code',
+        'error_message',
+        'reason',
+        'stack_trace',
+    )
+    list_filter = (
+        'status',
+        'timestamp',
+        'created_at',
+        'updated_at',
+        'last_retry_at',
+    )
+    readonly_fields = (
+        'timestamp',
+        'created_at',
+        'updated_at',
+        'payload',
+    )
+    autocomplete_fields = ('digiseller_order',)
+    ordering = ('-created_at',)
+    
+    
+

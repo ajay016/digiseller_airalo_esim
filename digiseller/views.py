@@ -26,7 +26,9 @@ from typing import Dict, List, Tuple
 from django.http import HttpResponse
 from django.utils import translation
 import base64
+import traceback
 from django.conf import settings
+import logging
 import requests
 import hashlib
 import time
@@ -38,6 +40,10 @@ from airalo.tasks.airalo_tasks import purchase_airalo_sim, fetch_completed_order
 
 
 
+
+
+
+logger = logging.getLogger(__name__)
 
 
 
@@ -582,6 +588,7 @@ def verify_unique_code_and_get_info(code: str) -> Dict:
     except Exception as exc:
         # Unexpected error – log & surface 5xx so Digiseller retries
         print(f"❗️ Internal error: {exc}")
+        traceback.print_exc()
         raise
 
 
@@ -734,7 +741,6 @@ def persist_and_queue(product, variant, airalo_pkg, buyer_info, quantity, conten
             
         else:
             # Unknown provider
-        
             digiseller_order.status = "failed"
             digiseller_order.error_message = f"Unknown provider: {provider}"
             digiseller_order.save(update_fields=["status", "error_message"])
@@ -753,6 +759,7 @@ def persist_and_queue(product, variant, airalo_pkg, buyer_info, quantity, conten
         retry_all_failed_orders.delay()
     
     return digiseller_order
+
     
 def update_digiseller_order(order_id: int, status: int) -> None:
     """Update only the digiseller_transaction_status field of an existing order."""

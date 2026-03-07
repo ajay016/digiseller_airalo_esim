@@ -52,11 +52,15 @@
 
                         {% if sim.short_url %}
                         <div style="font-size: 13px; color: #111827; margin-bottom: 6px;">
-                            <strong>Short URL:</strong> <a href="{{ sim.short_url }}" target="_blank" style="color: #006a4c; text-decoration: none;">Open</a>
+                            <strong>Short URL:</strong> <a href="{{ sim.short_url }}" target="_blank" style="color: #006a4c; text-decoration: none;">{{ sim.short_url }}</a>
                         </div>
                         {% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
 
-                        {% if sim.smdp_address %}
+                <div style="margin-bottom: 30px;">
+                    {% if sim.smdp_address %}
                         <div style="font-size: 13px; color: #111827; margin-bottom: 6px;">
                             <strong>SM-DP+ Address:</strong> <span style="font-family: monospace;">{{ sim.smdp_address }}</span>
                         </div>

@@ -21,7 +21,7 @@ from esim.models import (
 )
 from digiseller.views import get_digiseller_token
 
-from task.esimaccess_delivery_email import (
+from .esimaccess_delivery_email import (
     EsimAccessSimEmailRow,
     build_esimaccess_delivery_email,
     send_esimaccess_delivery_email,
@@ -421,6 +421,11 @@ def fetch_esimaccess_details_async(self, order_no, esimaccess_order_id, digisell
                         if customer_email:
                             order.esim_email_sent = True
                             order.save(update_fields=["esim_email_sent"])
+                            
+                            logger.info(
+                                "✅ Marked esim_email_sent=True for DigisellerOrder pk=%s",
+                                order.pk,
+                            )
 
                 if customer_email:
                     sims_qs = ESIMAccessSIM.objects.filter(esimaccess_order=esimaccess_order).order_by("-created_at")[:50]
@@ -506,6 +511,17 @@ def purchase_esimaccess_sim(self, digiseller_order_id):
     
     try:
         order = DigisellerOrder.objects.select_related("airalo_package").get(pk=digiseller_order_id)
+        logger.info(
+            "📌 Loaded DigisellerOrder pk=%s order_id=%s status=%s quantity=%s buyer_email=%s package_id=%s provider=%s",
+            order.pk,
+            order.order_id,
+            order.status,
+            order.quantity,
+            order.buyer_email,
+            getattr(order.airalo_package, "package_id", None),
+            getattr(order.airalo_package, "provider", None),
+        )
+        
     except DigisellerOrder.DoesNotExist:
         logger.error(f"DigisellerOrder {digiseller_order_id} not found")
         return
@@ -527,12 +543,29 @@ def purchase_esimaccess_sim(self, digiseller_order_id):
     
     with transaction.atomic():
         order = DigisellerOrder.objects.select_for_update().get(pk=digiseller_order_id)
+        logger.info(
+            "🔒 Locked DigisellerOrder pk=%s current_status=%s esimaccess_order_id=%s",
+            order.pk,
+            order.status,
+            getattr(order.esimaccess_order, "id", None),
+        )
+        
         if order.status in ("processing", "completed"):
             logger.info(f"Order {digiseller_order_id} already {order.status}, skipping duplicate run.")
+            logger.info(
+                "⏭️ Duplicate execution skipped for DigisellerOrder pk=%s because status=%s",
+                order.pk,
+                order.status,
+            )
             return
 
         order.status = "processing"
         order.save(update_fields=["status"])
+        
+        logger.info(
+            "📝 DigisellerOrder pk=%s status updated to processing",
+            order.pk,
+        )
 
     package_code = order.airalo_package.package_id
     quantity = int(order.quantity)
@@ -544,6 +577,13 @@ def purchase_esimaccess_sim(self, digiseller_order_id):
         # Step 1: Fetch current package price from API
         logger.info(f"🔍 Fetching current price for package {package_code}")
         package_details = fetch_package_details(package_code)
+        
+        logger.info(
+            "📥 fetch_package_details returned for package_code=%s: is_none=%s keys=%s",
+            package_code,
+            package_details is None,
+            list(package_details.keys()) if isinstance(package_details, dict) else None,
+        )
         
         if not package_details:
             raise Exception(f"Could not fetch package details for {package_code}")
@@ -565,9 +605,22 @@ def purchase_esimaccess_sim(self, digiseller_order_id):
             package_price_cents=api_price_cents
         )
         
+        logger.info(
+            "📦 post_esimaccess_order response for DigisellerOrder pk=%s: keys=%s order_response=%s",
+            order.pk,
+            list(order_response.keys()) if isinstance(order_response, dict) else None,
+            order_response,
+        )
+        
         # Get the order number from the response
         order_no = order_response.get("orderNo")
         transaction_id = order_response.get("transactionId")
+        
+        logger.info(
+            "🧷 Parsed order response values: order_no=%s transaction_id=%s",
+            order_no,
+            transaction_id,
+        )
         
         if not order_no:
             raise Exception("No orderNo in response")
@@ -594,6 +647,16 @@ def purchase_esimaccess_sim(self, digiseller_order_id):
                     "created_at_api": timezone.now(),
                     "raw_payload": order_response,
                 }
+            )
+            
+            logger.info(
+                "💾 ESIMAccessOrder saved id=%s created=%s order_no=%s status=%s price=%s net_price=%s",
+                esimaccess_order.id,
+                _created,
+                esimaccess_order.order_no,
+                esimaccess_order.status,
+                esimaccess_order.price,
+                esimaccess_order.net_price,
             )
         
         # Link the ESIMAccessOrder to the DigisellerOrder
