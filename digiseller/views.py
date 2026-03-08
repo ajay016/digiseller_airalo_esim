@@ -735,7 +735,7 @@ def persist_and_queue(product, variant, airalo_pkg, buyer_info, quantity, conten
             
         elif provider == 'esimaccess':
             # eSIM Access provider
-            from esim.task.esim_tasks import purchase_esimaccess_sim
+            from esim.templates.esim_tasks import purchase_esimaccess_sim
             purchase_esimaccess_sim.delay(digiseller_order.id)
    
             
@@ -755,7 +755,7 @@ def persist_and_queue(product, variant, airalo_pkg, buyer_info, quantity, conten
     
     if DigisellerFailedOrder.objects.all().exists():
       
-        from digiseller.tasks.task import retry_all_failed_orders
+        from digiseller.task import retry_all_failed_orders
         retry_all_failed_orders.delay()
     
     return digiseller_order

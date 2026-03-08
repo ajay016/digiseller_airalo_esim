@@ -21,7 +21,7 @@ from esim.models import (
 )
 from digiseller.views import get_digiseller_token
 
-from .esimaccess_delivery_email import (
+from ..task.esimaccess_delivery_email import (
     EsimAccessSimEmailRow,
     build_esimaccess_delivery_email,
     send_esimaccess_delivery_email,

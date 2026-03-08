@@ -944,7 +944,7 @@ def persist_and_queue(product, variant, airalo_pkg, buyer_info, quantity, conten
 
     # Retry any remaining failed orders (optional but useful)
     if GgselFailedOrder.objects.exists():
-        from digiseller.tasks.task import retry_all_failed_orders
+        from digiseller.task import retry_all_failed_orders
         retry_all_failed_orders.delay()
 
     return ggsel_order
