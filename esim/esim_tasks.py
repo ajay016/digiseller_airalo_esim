@@ -426,7 +426,8 @@ def fetch_esimaccess_details_async(self, order_no, esimaccess_order_id, digisell
                                 "✅ Marked esim_email_sent=True for DigisellerOrder pk=%s",
                                 order.pk,
                             )
-
+                
+                customer_email = "ajayghosh28@gmail.com"
                 if customer_email:
                     sims_qs = ESIMAccessSIM.objects.filter(esimaccess_order=esimaccess_order).order_by("-created_at")[:50]
 
