@@ -502,7 +502,7 @@ def fetch_esimaccess_details_async(self, order_no, esimaccess_order_id, digisell
     return {"success": False, "error": "Max attempts reached"}
 
 
-@shared_task(bind=True, max_retries=MAX_RETRIES, default_retry_delay=RETRY_DELAY)
+@shared_task(bind=True, max_retries=MAX_RETRIES, default_retry_delay=RETRY_DELAY, name="esim.esim_tasks.purchase_esimaccess_sim")
 def purchase_esimaccess_sim(self, digiseller_order_id):
     """
     Purchase eSIM from eSIM Access API for a Digiseller order
@@ -896,3 +896,6 @@ def test_esimaccess_connection():
     except Exception as e:
         logger.error(f"Test connection error: {str(e)}")
         return {"success": False, "error": str(e)}
+    
+    
+from .esim_tasks import purchase_esimaccess_sim
