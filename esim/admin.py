@@ -377,7 +377,7 @@ class DigisellerOrderAdmin(admin.ModelAdmin):
             )
         }),
         ('Processing', {
-            'fields': ('status', 'digiseller_transaction_status', 'error_message', 'airalo_order')
+            'fields': ('status', 'digiseller_transaction_status', 'esim_email_sent', 'error_message', 'airalo_order')
         }),
         ('Tracking & Meta', {
             'fields': ('cart_uid', 'raw_payload', 'created_at', 'updated_at')
