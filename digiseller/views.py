@@ -735,7 +735,7 @@ def persist_and_queue(product, variant, airalo_pkg, buyer_info, quantity, conten
             
         elif provider == 'esimaccess':
             # eSIM Access provider
-            from esim.templates.esim_tasks import purchase_esimaccess_sim
+            from esim.esim_tasks import purchase_esimaccess_sim
             purchase_esimaccess_sim.delay(digiseller_order.id)
    
             

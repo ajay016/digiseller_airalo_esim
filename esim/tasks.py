@@ -19,7 +19,6 @@ User = get_user_model()
 logger = logging.getLogger(__name__)
 
 @shared_task(bind=True, max_retries=3, soft_time_limit=7200, time_limit=10800)
-
 def sync_esimaccess_packages_task(self):
     """
     Celery task to sync eSIM Access packages asynchronously
