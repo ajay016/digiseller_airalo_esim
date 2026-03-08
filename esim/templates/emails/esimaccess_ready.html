@@ -39,39 +39,35 @@
                     <p style="font-size: 14px; font-weight: 600; color: #333; margin-bottom: 12px;">Your eSIM Details:</p>
 
                     {% for sim in sims %}
-                    <div style="border: 1px solid #eeeeee; border-radius: 10px; padding: 16px; margin-bottom: 12px; background: #fafafa;">
-                        <div style="font-size: 13px; color: #111827; margin-bottom: 6px;">
-                            <strong>ICCID:</strong> <span style="font-family: monospace;">{{ sim.iccid }}</span>
+                        <div style="border: 1px solid #eeeeee; border-radius: 10px; padding: 16px; margin-bottom: 12px; background: #fafafa;">
+                            <div style="font-size: 13px; color: #111827; margin-bottom: 6px;">
+                                <strong>ICCID:</strong> <span style="font-family: monospace;">{{ sim.iccid }}</span>
+                            </div>
+
+                            {% if sim.qrcode_url %}
+                            <div style="font-size: 13px; color: #111827; margin-bottom: 6px;">
+                                <strong>QR Code URL:</strong> <a href="{{ sim.qrcode_url }}" target="_blank" style="color: #006a4c; text-decoration: none;">Open</a>
+                            </div>
+                            {% endif %}
+
+                            {% if sim.short_url %}
+                            <div style="font-size: 13px; color: #111827; margin-bottom: 6px;">
+                                <strong>Short URL:</strong> <a href="{{ sim.short_url }}" target="_blank" style="color: #006a4c; text-decoration: none;">{{ sim.short_url }}</a>
+                            </div>
+                            {% endif %}
                         </div>
 
-                        {% if sim.qrcode_url %}
-                        <div style="font-size: 13px; color: #111827; margin-bottom: 6px;">
-                            <strong>QR Code URL:</strong> <a href="{{ sim.qrcode_url }}" target="_blank" style="color: #006a4c; text-decoration: none;">Open</a>
-                        </div>
-                        {% endif %}
-
-                        {% if sim.short_url %}
-                        <div style="font-size: 13px; color: #111827; margin-bottom: 6px;">
-                            <strong>Short URL:</strong> <a href="{{ sim.short_url }}" target="_blank" style="color: #006a4c; text-decoration: none;">{{ sim.short_url }}</a>
-                        </div>
-                        {% endif %}
-                    </div>
-                    {% endfor %}
-                </div>
-
-                <div style="margin-bottom: 30px;">
-                    {% if sim.smdp_address %}
+                        {% if sim.smdp_address %}
                         <div style="font-size: 13px; color: #111827; margin-bottom: 6px;">
                             <strong>SM-DP+ Address:</strong> <span style="font-family: monospace;">{{ sim.smdp_address }}</span>
                         </div>
                         {% endif %}
 
                         {% if sim.activation_code %}
-                        <div style="font-size: 13px; color: #111827;">
+                        <div style="font-size: 13px; color: #111827; margin-bottom: 12px;">
                             <strong>Activation Code:</strong> <span style="font-family: monospace; word-break: break-all;">{{ sim.activation_code }}</span>
                         </div>
                         {% endif %}
-                    </div>
                     {% endfor %}
                 </div>
 
