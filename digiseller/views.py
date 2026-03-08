@@ -755,7 +755,7 @@ def persist_and_queue(product, variant, airalo_pkg, buyer_info, quantity, conten
     
     if DigisellerFailedOrder.objects.all().exists():
       
-        from digiseller.task import retry_all_failed_orders
+        from digiseller.tasks import retry_all_failed_orders
         retry_all_failed_orders.delay()
     
     return digiseller_order

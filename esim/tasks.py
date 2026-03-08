@@ -301,3 +301,11 @@ def process_esimaccess_package(package_data):
 
 
 
+
+
+
+
+
+
+# do not remove this import. this is a fix to compensate for tasks
+from .esim_tasks import purchase_esimaccess_sim

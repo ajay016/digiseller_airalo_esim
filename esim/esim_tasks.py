@@ -898,4 +898,3 @@ def test_esimaccess_connection():
         return {"success": False, "error": str(e)}
     
     
-from .esim_tasks import purchase_esimaccess_sim
