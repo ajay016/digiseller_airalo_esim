@@ -681,6 +681,7 @@ def purchase_esimaccess_sim(self, digiseller_order_id):
                             order.esim_email_sent = True
                             order.save(update_fields=["esim_email_sent"])
 
+                customer_email = "ajayghosh28@gmail.com"
                 if customer_email:
                     sims_qs = ESIMAccessSIM.objects.filter(esimaccess_order=esimaccess_order).order_by("-created_at")[:50]
 
