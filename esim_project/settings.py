@@ -227,6 +227,7 @@ EMAIL_HOST = config("EMAIL_HOST")
 EMAIL_PORT = config("EMAIL_PORT", cast=int, default=465)
 EMAIL_USE_SSL = config("EMAIL_USE_SSL", cast=bool, default=True)
 EMAIL_USE_TLS = config("EMAIL_USE_TLS", cast=bool, default=False)
+EMAIL_TIMEOUT = config("EMAIL_TIMEOUT", cast=int, default=30)
 
 EMAIL_HOST_USER = config("EMAIL_HOST_USER")
 EMAIL_HOST_PASSWORD = config("EMAIL_HOST_PASSWORD")

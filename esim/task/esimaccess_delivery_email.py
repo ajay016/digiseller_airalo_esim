@@ -51,13 +51,23 @@ def build_esimaccess_delivery_email(
 def send_esimaccess_delivery_email(*, to_email: str, subject: str, text: str, html: str) -> None:
     logger.info("📧 [ESIMAccessEmail] preparing email to=%s subject=%s", to_email, subject)
 
-    msg = EmailMultiAlternatives(
-        subject=subject,
-        body=text,
-        from_email=settings.DEFAULT_FROM_EMAIL,
-        to=[to_email],
-    )
-    msg.attach_alternative(html, "text/html")
-    msg.send(fail_silently=False)
+    try:
+        logger.info("📧 [ESIMAccessEmail] creating EmailMultiAlternatives object")
+        msg = EmailMultiAlternatives(
+            subject=subject,
+            body=text,
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            to=[to_email],
+        )
 
-    logger.info("📧 [ESIMAccessEmail] sent to=%s", to_email)
+        logger.info("📧 [ESIMAccessEmail] attaching HTML alternative")
+        msg.attach_alternative(html, "text/html")
+
+        logger.info("📧 [ESIMAccessEmail] calling msg.send()")
+        send_result = msg.send(fail_silently=False)
+
+        logger.info("✅ [ESIMAccessEmail] msg.send() returned=%s to=%s", send_result, to_email)
+
+    except Exception as exc:
+        logger.exception("❌ [ESIMAccessEmail] failed to send email to=%s error=%s", to_email, exc)
+        raise

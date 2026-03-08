@@ -465,6 +465,12 @@ def fetch_esimaccess_details_async(self, order_no, esimaccess_order_id, digisell
                         html=html,
                     )
                     
+                    logger.info(
+                        "✅ Email send function completed for DigisellerOrder pk=%s to=%s",
+                        digiseller_order_id,
+                        customer_email,
+                    )
+                    
                     with transaction.atomic():
                         order = DigisellerOrder.objects.select_for_update().get(pk=digiseller_order_id)
                         if not order.esim_email_sent:
@@ -741,6 +747,12 @@ def purchase_esimaccess_sim(self, digiseller_order_id):
                         subject=subject,
                         text=text,
                         html=html,
+                    )
+                    
+                    logger.info(
+                        "✅ Email send function completed for DigisellerOrder pk=%s to=%s",
+                        digiseller_order_id,
+                        customer_email,
                     )
                     
                     with transaction.atomic():
