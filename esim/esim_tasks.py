@@ -419,7 +419,6 @@ def fetch_esimaccess_details_async(self, order_no, esimaccess_order_id, digisell
                     else:
                         customer_email = (order.buyer_email or "").strip()
 
-                customer_email = "ajayghosh28@gmail.com"
                 if customer_email:
                     sims_qs = ESIMAccessSIM.objects.filter(esimaccess_order=esimaccess_order).order_by("-created_at")[:50]
 
@@ -703,7 +702,6 @@ def purchase_esimaccess_sim(self, digiseller_order_id):
                     else:
                         customer_email = (order.buyer_email or "").strip()
 
-                customer_email = "ajayghosh28@gmail.com"
                 if customer_email:
                     sims_qs = ESIMAccessSIM.objects.filter(esimaccess_order=esimaccess_order).order_by("-created_at")[:50]
 
