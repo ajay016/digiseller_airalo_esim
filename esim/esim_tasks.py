@@ -418,15 +418,7 @@ def fetch_esimaccess_details_async(self, order_no, esimaccess_order_id, digisell
                         customer_email = ""
                     else:
                         customer_email = (order.buyer_email or "").strip()
-                        if customer_email:
-                            order.esim_email_sent = True
-                            order.save(update_fields=["esim_email_sent"])
-                            
-                            logger.info(
-                                "✅ Marked esim_email_sent=True for DigisellerOrder pk=%s",
-                                order.pk,
-                            )
-                
+
                 customer_email = "ajayghosh28@gmail.com"
                 if customer_email:
                     sims_qs = ESIMAccessSIM.objects.filter(esimaccess_order=esimaccess_order).order_by("-created_at")[:50]
@@ -459,6 +451,12 @@ def fetch_esimaccess_details_async(self, order_no, esimaccess_order_id, digisell
                         sharing_access_code=None,
                         sharing_link=None,
                     )
+                    
+                    logger.info(
+                        "📧 Sending eSIM Access delivery email for DigisellerOrder pk=%s to %s",
+                        digiseller_order_id,
+                        customer_email,
+                    )
 
                     send_esimaccess_delivery_email(
                         to_email=customer_email,
@@ -466,13 +464,33 @@ def fetch_esimaccess_details_async(self, order_no, esimaccess_order_id, digisell
                         text=text,
                         html=html,
                     )
+                    
+                    with transaction.atomic():
+                        order = DigisellerOrder.objects.select_for_update().get(pk=digiseller_order_id)
+                        if not order.esim_email_sent:
+                            order.esim_email_sent = True
+                            order.save(update_fields=["esim_email_sent"])
+                            logger.info(
+                                "✅ Marked esim_email_sent=True for DigisellerOrder pk=%s after successful email send",
+                                order.pk,
+                            )
+                            
+                    with transaction.atomic():
+                        order = DigisellerOrder.objects.select_for_update().get(pk=digiseller_order_id)
+                        if order.digiseller_transaction_status != 2:
+                            try:
+                                deliver_unique_code(order.unique_code)
+                                order.digiseller_transaction_status = 2
+                                order.save(update_fields=["digiseller_transaction_status"])
+                                logger.info(
+                                    "✅ Digiseller deliver endpoint completed after successful background email send for order pk=%s",
+                                    order.pk,
+                                )
+                            except Exception as exc:
+                                logger.error(f"❌ Failed to call Digiseller deliver endpoint in background task: {exc}")
+            
                 else:
                     logger.warning("📧 [ESIMAccessEmail] No buyer_email found for digiseller_order_id=%s", digiseller_order_id)
-
-                # Mark delivered status (optional / keep your existing behavior)
-                DigisellerOrder.objects.filter(id=digiseller_order_id).update(
-                    digiseller_transaction_status=2
-                )
 
                 return {"success": True, "attempt": attempt, "saved": saved_count}
             
@@ -678,9 +696,6 @@ def purchase_esimaccess_sim(self, digiseller_order_id):
                         customer_email = ""
                     else:
                         customer_email = (order.buyer_email or "").strip()
-                        if customer_email:
-                            order.esim_email_sent = True
-                            order.save(update_fields=["esim_email_sent"])
 
                 customer_email = "ajayghosh28@gmail.com"
                 if customer_email:
@@ -714,6 +729,12 @@ def purchase_esimaccess_sim(self, digiseller_order_id):
                         sharing_access_code=None,
                         sharing_link=None,
                     )
+                    
+                    logger.info(
+                        "📧 Sending eSIM Access delivery email for DigisellerOrder pk=%s to %s",
+                        digiseller_order_id,
+                        customer_email,
+                    )
 
                     send_esimaccess_delivery_email(
                         to_email=customer_email,
@@ -721,60 +742,56 @@ def purchase_esimaccess_sim(self, digiseller_order_id):
                         text=text,
                         html=html,
                     )
+                    
+                    with transaction.atomic():
+                        order = DigisellerOrder.objects.select_for_update().get(pk=digiseller_order_id)
+                        if not order.esim_email_sent:
+                            order.esim_email_sent = True
+                            order.save(update_fields=["esim_email_sent"])
+                            logger.info(
+                                "✅ Marked esim_email_sent=True for DigisellerOrder pk=%s after successful email send",
+                                order.pk,
+                            )
                 else:
                     logger.warning("📧 [ESIMAccessEmail] No buyer_email found for digiseller_order_id=%s", order.id)
                 
                 # Mark order as completed
                 order.status = "completed"
                 order.save(update_fields=["status"])
-                
-                # Call Digiseller deliver endpoint
-                try:
-                    deliver_unique_code(order.unique_code)
-                    order.digiseller_transaction_status = 2
-                    order.save(update_fields=["digiseller_transaction_status"])
-                    logger.info("✅ Digiseller deliver endpoint completed immediately.")
-                except Exception as exc:
-                    logger.error(f"❌ Failed to call Digiseller deliver endpoint: {exc}")
-                    # Don't fail the whole order if deliver fails - can be retried separately
-                
+
+                if customer_email and order.esim_email_sent:
+                    try:
+                        deliver_unique_code(order.unique_code)
+                        order.digiseller_transaction_status = 2
+                        order.save(update_fields=["digiseller_transaction_status"])
+                        logger.info("✅ Digiseller deliver endpoint completed after successful email send.")
+                    except Exception as exc:
+                        logger.error(f"❌ Failed to call Digiseller deliver endpoint: {exc}")
+                else:
+                    logger.warning(
+                        "⚠️ Skipping Digiseller deliver for order %s because email was not sent successfully.",
+                        order.pk,
+                    )
+
                 return {"success": True, "order_no": order_no, "sims_fetched": True}
             else:
                 logger.info(f"⏳ No eSIMs available immediately for order {order_no}, scheduling background fetch")
-                
+
                 # Mark order as completed even without eSIMs - they'll come later
                 order.status = "completed"
                 order.save(update_fields=["status"])
-                
-                # Call Digiseller deliver endpoint (some providers deliver immediately even without eSIMs)
-                try:
-                    deliver_unique_code(order.unique_code)
-                    order.digiseller_transaction_status = 2
-                    order.save(update_fields=["digiseller_transaction_status"])
-                    logger.info("✅ Digiseller deliver endpoint completed (eSIMs pending).")
-                except Exception as exc:
-                    logger.error(f"❌ Failed to call Digiseller deliver endpoint: {exc}")
-                    # Still schedule background fetch - we can retry deliver later
-                
+
                 # Schedule background task to fetch eSIMs later
                 fetch_esimaccess_details_async.delay(order_no, esimaccess_order.id, digiseller_order_id)
-                
+
                 return {"success": True, "order_no": order_no, "sims_fetched": False}
                 
         except Exception as e:
-            logger.warning(f"⚠️ Error in immediate eSIM fetch: {str(e)}")
+            logger.warning(f"⚠️ Error in immediate eSIM fetch/email flow: {str(e)}")
             
             # Still mark order as completed - we'll fetch later
             order.status = "completed"
             order.save(update_fields=["status"])
-            
-            # Try to deliver anyway
-            try:
-                deliver_unique_code(order.unique_code)
-                order.digiseller_transaction_status = 2
-                order.save(update_fields=["digiseller_transaction_status"])
-            except Exception as exc:
-                logger.error(f"❌ Failed to call Digiseller deliver endpoint: {exc}")
             
             # Schedule background fetch
             fetch_esimaccess_details_async.delay(order_no, esimaccess_order.id, digiseller_order_id)
