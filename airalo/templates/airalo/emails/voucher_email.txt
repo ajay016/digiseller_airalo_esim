@@ -1,0 +1,27 @@
+{{ brand_name }} - Voucher Delivery
+
+Your eSIM voucher code(s)
+
+Booking reference: {{ booking_reference }}
+Package: {{ package_id }}
+Customer Email: {{ customer_email }}
+
+Voucher Codes:
+{% for code in codes %}
+- {{ code }}
+{% endfor %}
+
+Как зачислить купон Airmoney на свой аккаунт AIRALO?
+
+Зачислить купон Airmoney на аккаунт можно следующим образом.
+
+На сайте Airalo:
+- Перейдите в раздел Airmoney.
+- Нажмите Погасить ваучер.
+- Введите код ваучера и нажмите Погасить.
+
+В приложении Airalo:
+- Нажмите Airmoney в правом верхнем углу.
+- Нажмите Применить купон.
+
+If you have any issues using these codes, reply to this email and we’ll help you.

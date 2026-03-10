@@ -9,7 +9,7 @@ from django.conf import settings
 import requests
 import json
 import logging
-from airalo.utils.voucher_email import build_voucher_email_html, send_voucher_email
+from airalo.utils.voucher_email import build_voucher_email_content, send_voucher_email
 
 
 
@@ -516,7 +516,7 @@ def purchase_airalo_voucher_for_ggsel(self, ggsel_order_id):
 
     package_id_for_email = first_item_package_id or order.airalo_package.package_id
 
-    subject, text, html = build_voucher_email_html(
+    subject, text, html = build_voucher_email_content(
         customer_email=customer_email,
         booking_reference=str(order.order_id),
         package_id=package_id_for_email,
