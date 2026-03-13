@@ -135,6 +135,7 @@ class PackageAdmin(admin.ModelAdmin):
         "title",
         "package_id",
         "operator",
+        "country",
         "type",
         "price",
         "day",
@@ -142,6 +143,7 @@ class PackageAdmin(admin.ModelAdmin):
         "is_fair_usage_policy",
     )
     list_filter = (
+        "operator__country",
         "operator",
         "type",
         "is_unlimited",
@@ -150,6 +152,7 @@ class PackageAdmin(admin.ModelAdmin):
     search_fields = (
         "title",
         "operator__title",
+        "operator__country__title",
         "package_id",
     )
     readonly_fields = (
@@ -157,6 +160,10 @@ class PackageAdmin(admin.ModelAdmin):
         "manual_installation",
         "fair_usage_policy",
     )
+
+    @admin.display(ordering="operator__country__title", description="Country")
+    def country(self, obj):
+        return obj.operator.country.title
 
 
 # IMPORTANT:
@@ -170,6 +177,7 @@ class BasePackageAdmin(admin.ModelAdmin):
         "title",
         "package_id",
         "operator",
+        "country",
         "type",
         "price",
         "day",
@@ -177,6 +185,7 @@ class BasePackageAdmin(admin.ModelAdmin):
         "is_fair_usage_policy",
     )
     list_filter = (
+        "operator__country",
         "operator",
         "type",
         "is_unlimited",
@@ -185,6 +194,7 @@ class BasePackageAdmin(admin.ModelAdmin):
     search_fields = (
         "title",
         "operator__title",
+        "operator__country__title",
         "package_id",
     )
     readonly_fields = (
@@ -192,6 +202,10 @@ class BasePackageAdmin(admin.ModelAdmin):
         "manual_installation",
         "fair_usage_policy",
     )
+
+    @admin.display(ordering="operator__country__title", description="Country")
+    def country(self, obj):
+        return obj.operator.country.title
 
 
 @admin.register(AiraloPackage)

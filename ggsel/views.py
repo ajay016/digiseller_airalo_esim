@@ -826,21 +826,68 @@ def find_matching_variants(
     """Return [(variant, airalo_package), …] for any matching user_data_id."""
     matches = []
 
-    for opt in options:
+    print("========== find_matching_variants START ==========")
+    print(f"Product ID: {getattr(product, 'id', None)}")
+    print(f"Product: {product}")
+    print(f"Options received: {options}")
+
+    for index, opt in enumerate(options, start=1):
+        print(f"\n----- Processing option #{index} -----")
+        print(f"Raw option: {opt}")
+
         v_id = opt.get("user_data_id")
-        try:
-            variant = GgselVariant.objects.get(
-                product=product, variant_value=v_id
-            )
-        except GgselVariant.DoesNotExist:
+        print(f"Extracted user_data_id: {v_id}")
+
+        if not v_id:
+            print("No user_data_id found in this option. Skipping.")
             continue
 
+        try:
+            print(
+                f"Looking for GgselVariant with product_id={getattr(product, 'id', None)} "
+                f"and variant_value={v_id}"
+            )
+            variant = GgselVariant.objects.get(
+                product=product,
+                variant_value=v_id
+            )
+            print(f"GGSEL variant matched ----> {variant} (id={variant.id})")
+
+        except GgselVariant.DoesNotExist:
+            print(
+                f"No GgselVariant found for product_id={getattr(product, 'id', None)} "
+                f"and variant_value={v_id}"
+            )
+            continue
+
+        except Exception as e:
+            print(
+                f"Unexpected error while fetching variant for variant_value={v_id}: {e}"
+            )
+            raise
+
+        print(f"Variant airalo_package: {variant.airalo_package}")
+
         if variant.airalo_package:
+            print(
+                f"Appending match: variant_id={variant.id}, "
+                f"airalo_package_id={getattr(variant.airalo_package, 'id', None)}"
+            )
             matches.append((variant, variant.airalo_package))
+        else:
+            print(
+                f"Variant matched but no airalo_package is mapped. "
+                f"variant_id={variant.id}"
+            )
+
+    print("\nFinal matches:", matches)
+    print(f"Total matches found: {len(matches)}")
 
     if not matches:
+        print("No variants matched / mapped to Airalo packages. Raising SkipWebhook.")
         raise SkipWebhook("No variants matched / mapped to Airalo packages")
 
+    print("========== find_matching_variants END ==========")
     return matches
 
 

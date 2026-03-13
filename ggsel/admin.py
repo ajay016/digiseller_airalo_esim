@@ -71,7 +71,7 @@ class GgselVariantAdmin(admin.ModelAdmin):
         'display_modifier',
     )
     list_select_related = ('product', 'airalo_package')
-    search_fields = ('product__name_goods', 'text', 'product__id_goods')
+    search_fields = ('product__name_goods', 'text', 'product__id_goods', 'variant_value')
     list_filter = ('default', 'visible', 'modify_type')
     raw_id_fields = ('product', 'airalo_package') # Useful for better performance with many objects
     
