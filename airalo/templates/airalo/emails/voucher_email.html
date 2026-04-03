@@ -58,8 +58,11 @@
                             </div>
 
                             {% for code in codes %}
-                                <div style="margin-bottom: 12px; padding: 16px 18px; border: 1px solid #dbeafe; border-radius: 14px; background: linear-gradient(180deg, #f8fbff 0%, #eff6ff 100%); font-family: 'Courier New', Courier, monospace; font-size: 16px; line-height: 24px; letter-spacing: 0.4px; color: #0f172a; font-weight: 700;">
+                                <div style="margin-bottom: 12px; padding: 16px 18px; border: 1px dashed #2563eb; border-radius: 14px; background-color: #f8fbff; font-family: 'Courier New', Courier, monospace; font-size: 18px; line-height: 24px; color: #0f172a; font-weight: 700; text-align: center; cursor: pointer; -webkit-user-select: all; user-select: all;">
                                     {{ code }}
+                                </div>
+                                <div style="text-align: center; font-size: 11px; color: #94a3b8; margin-top: -8px; margin-bottom: 16px;">
+                                    (Tap code to select all)
                                 </div>
                             {% endfor %}
 
