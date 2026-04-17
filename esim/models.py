@@ -185,9 +185,13 @@ class APN(models.Model):
     ios_apn_value = models.CharField(max_length=100, blank=True, null=True)
     android_apn_type = models.CharField(max_length=50, blank=True, null=True)
     android_apn_value = models.CharField(max_length=100, blank=True, null=True)
+    
+    
+
 class PackageProvider(models.TextChoices):
     AIRALO = 'airalo', _('Airalo')
     ESIM_ACCESS = 'esimaccess', _('ESIM Access')
+
 
 class Package(models.Model):
     provider = models.CharField(

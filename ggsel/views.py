@@ -41,8 +41,9 @@ from ggsel.models import *
 from airalo.tasks.airalo_tasks import(
     purchase_airalo_sim_for_ggsel,
     fetch_completed_orders,
-    purchase_airalo_voucher_for_ggsel
+    purchase_airalo_voucher_for_ggsel,
 )
+from esim.esim_tasks import purchase_esimaccess_sim_for_ggsel
 
 
 
@@ -976,15 +977,38 @@ def persist_and_queue(product, variant, airalo_pkg, buyer_info, quantity, conten
 
     # Enqueue the Celery background task
     # purchase_airalo_sim_for_ggsel.delay(ggsel_order.id)
-    mode = getattr(settings, "AIRALO_FULFILLMENT_MODE", "order")
-    logger.info("📦 persist_and_queue: fulfillment_mode=%s order_id=%s", mode, ggsel_order.order_id)
+    # Check the provider directly from the Package model
+    if airalo_pkg:
+        provider = airalo_pkg.provider  # Get provider from Package model
+        
+        if provider == 'airalo':
+            # Airalo provider logic (Keeps your voucher vs order logic intact)
+            mode = getattr(settings, "AIRALO_FULFILLMENT_MODE", "order")
+            logger.info("📦 persist_and_queue: fulfillment_mode=%s order_id=%s", mode, ggsel_order.order_id)
 
-    if mode == "voucher":
-        purchase_airalo_voucher_for_ggsel.delay(ggsel_order.id)
-        logger.info("📦 persist_and_queue: queued voucher task ggsel_order_id=%s", ggsel_order.id)
+            if mode == "voucher":
+                purchase_airalo_voucher_for_ggsel.delay(ggsel_order.id)
+                logger.info("📦 persist_and_queue: queued voucher task ggsel_order_id=%s", ggsel_order.id)
+            else:
+                purchase_airalo_sim_for_ggsel.delay(ggsel_order.id)
+                logger.info("📦 persist_and_queue: queued SIM order task ggsel_order_id=%s", ggsel_order.id)
+                
+        elif provider == 'esimaccess':
+            # eSIM Access provider
+            from esim.esim_tasks import purchase_esimaccess_sim
+            purchase_esimaccess_sim_for_ggsel.delay(ggsel_order.id)
+            logger.info("📦 persist_and_queue: queued esimaccess task ggsel_order_id=%s", ggsel_order.id)
+            
+        else:
+            # Unknown provider
+            ggsel_order.status = "failed"
+            ggsel_order.error_message = f"Unknown provider: {provider}"
+            ggsel_order.save(update_fields=["status", "error_message"])
     else:
-        purchase_airalo_sim_for_ggsel.delay(ggsel_order.id)
-        logger.info("📦 persist_and_queue: queued SIM order task ggsel_order_id=%s", ggsel_order.id)
+        # No package assigned
+        ggsel_order.status = "failed"
+        ggsel_order.error_message = "No package assigned"
+        ggsel_order.save(update_fields=["status", "error_message"])
 
     # Remove any failed-order record for this order
     GgselFailedOrder.objects.filter(order_id=order_id).delete()
