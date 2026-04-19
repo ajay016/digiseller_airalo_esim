@@ -217,7 +217,7 @@ USE_TZ = True
 
 LOCALE_PATHS = [BASE_DIR / 'locale']
 
-AIRALO_FULFILLMENT_MODE = "voucher"  # "voucher" or "order"
+AIRALO_FULFILLMENT_MODE = "order"  # "voucher" or "order"
 
 
 # Email configuration
