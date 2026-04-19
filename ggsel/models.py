@@ -94,6 +94,14 @@ class GgselOrder(models.Model):
                         on_delete=models.PROTECT,
                         related_name='ggsel_orders'
                     )
+    
+    esimaccess_order = models.OneToOneField(
+        'esim.ESIMAccessOrder', # Adjust the path if ESIMAccessOrder is in a different app
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='ggsel_order_ref'
+    )
     # Buyer info
     buyer_email           = models.EmailField(null=True, blank=True)
     buyer_ip              = models.GenericIPAddressField(null=True, blank=True)
@@ -106,6 +114,7 @@ class GgselOrder(models.Model):
     invoice_state         = models.IntegerField(null=True, blank=True)
     raw_payload           = models.JSONField()  # store the entire content dict for auditing
     quantity = models.DecimalField(max_digits=10, decimal_places=2, default=1.0)
+    esim_email_sent = models.BooleanField(default=False)
     
     airalo_order      = models.OneToOneField(
                             AiraloOrder, on_delete=models.SET_NULL,

@@ -942,6 +942,8 @@ def persist_and_queue(product, variant, airalo_pkg, buyer_info, quantity, conten
     try:
         # If the order already exists, no need to recreate it
         ggsel_order = GgselOrder.objects.get(order_id=order_id)
+        print(f"print statement ggsel_order in persist and queue function: {ggsel_order}")
+        print(f"logger info statement ggsel_order in persist and queue function: {ggsel_order}")
         GgselFailedOrder.objects.filter(order_id=order_id).delete()
         return ggsel_order
     except GgselOrder.DoesNotExist:
@@ -974,6 +976,8 @@ def persist_and_queue(product, variant, airalo_pkg, buyer_info, quantity, conten
         status="received",
         unique_code=code  # keep this field for GgselOrder (still in model)
     )
+    
+    print(f"print statement of ggsel_order create: {ggsel_order}")
 
     # Enqueue the Celery background task
     # purchase_airalo_sim_for_ggsel.delay(ggsel_order.id)
