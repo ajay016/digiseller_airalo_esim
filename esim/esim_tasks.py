@@ -848,7 +848,6 @@ def purchase_esimaccess_sim(self, digiseller_order_id):
                     else:
                         customer_email = (order.buyer_email or "").strip()
 
-                customer_email = 'ajayghosh28@gmail.com'
                 if customer_email:
                     sims_qs = ESIMAccessSIM.objects.filter(esimaccess_order=esimaccess_order).order_by("-created_at")[:50]
 
@@ -1182,7 +1181,6 @@ def purchase_esimaccess_sim_for_ggsel(self, digiseller_order_id):
                     else:
                         customer_email = (order.buyer_email or "").strip()
 
-                customer_email = 'ajayghosh28@gmail.com'
                 if customer_email:
                     sims_qs = ESIMAccessSIM.objects.filter(esimaccess_order=esimaccess_order).order_by("-created_at")[:50]
 
