@@ -795,6 +795,14 @@ class ESIMAccessFailedOrder(models.Model):
         related_name='esimaccess_failures'
     )
     
+    ggsel_order = models.ForeignKey(
+        'ggsel.GgselOrder',
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='esimaccess_failures'
+    )
+    
     # For direct reference
     order_no = models.CharField(max_length=100, blank=True, null=True, db_index=True)
     package_code = models.CharField(max_length=100, blank=True, null=True)

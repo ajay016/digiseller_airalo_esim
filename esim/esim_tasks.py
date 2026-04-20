@@ -209,8 +209,8 @@ def post_esimaccess_order(package_code: str, quantity: int, description: str,
 
 def query_esimaccess_order(order_no: str) -> dict:
     """
-    Query eSIM Access order status and get eSIM details
-    Endpoint: POST /api/v1/open/esim/query
+    Query eSIM Access order status and get eSIM details.
+    Relies on Celery to handle retries.
     """
     url = f"{ESIMACCESS_BASE_API_URL}/api/v1/open/esim/query"
     headers = _make_esimaccess_headers()
@@ -227,50 +227,32 @@ def query_esimaccess_order(order_no: str) -> dict:
 
     logger.info(f"Querying eSIM Access order: {order_no}")
     
-    max_query_retries = 10  # More retries for query as eSIMs may take time to generate
-    for attempt in range(1, max_query_retries + 1):
-        try:
-            resp = requests.post(url, json=payload, headers=headers, timeout=30)
+    try:
+        resp = requests.post(url, json=payload, headers=headers, timeout=30)
+        
+        if resp.status_code != 200:
+            logger.warning(f"Query failed with status {resp.status_code}")
+            return None
             
-            logger.info(f"Query attempt {attempt} status: {resp.status_code}")
+        data = resp.json()
+        
+        if not data.get("success"):
+            logger.warning(f"Query returned error: {data.get('errorMsg')}")
+            return None
+        
+        obj_data = data.get("obj", {})
+        esim_list = obj_data.get("esimList", [])
+        
+        if esim_list:
+            logger.info(f"✅ Found {len(esim_list)} eSIMs for order {order_no}")
+            return obj_data
+        else:
+            logger.info(f"No eSIMs found yet for order {order_no} in API response.")
+            return obj_data
             
-            if resp.status_code != 200:
-                logger.warning(f"Query failed with status {resp.status_code}")
-                if attempt == max_query_retries:
-                    return None
-                time.sleep(5)
-                continue
-                
-            data = resp.json()
-            
-            if not data.get("success"):
-                error_msg = data.get("errorMsg", "Unknown error")
-                logger.warning(f"Query returned error: {error_msg}")
-                if attempt == max_query_retries:
-                    return None
-                time.sleep(5)
-                continue
-            
-            obj_data = data.get("obj", {})
-            esim_list = obj_data.get("esimList", [])
-            
-            if esim_list:
-                logger.info(f"✅ Found {len(esim_list)} eSIMs for order {order_no}")
-                return obj_data
-            else:
-                logger.info(f"No eSIMs found yet for order {order_no}, retrying... (attempt {attempt}/{max_query_retries})")
-                if attempt == max_query_retries:
-                    return obj_data
-                # Exponential backoff
-                time.sleep(5 * (2 ** min(attempt, 5)))
-            
-        except Exception as exc:
-            logger.error(f"Query attempt {attempt} failed: {str(exc)}")
-            if attempt == max_query_retries:
-                return None
-            time.sleep(5)
-    
-    return None
+    except Exception as exc:
+        logger.error(f"Query failed: {str(exc)}")
+        return None
 
 
 def save_esimaccess_sims(esimaccess_order, query_response):
@@ -534,142 +516,114 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-@shared_task(bind=True, max_retries=10, default_retry_delay=RETRY_DELAY)
+@shared_task(bind=True, max_retries=15, default_retry_delay=RETRY_DELAY)
 def fetch_esimaccess_details_async_ggsel(self, order_no, esimaccess_order_id, ggsel_order_id):
     """Async task to fetch eSIM details for an eSIM Access order (GGsel)"""
-    logger.info(f"Fetching eSIM details for GGsel order {order_no}")
+    logger.info(f"Fetching eSIM details for GGsel order {order_no} (Attempt {self.request.retries + 1}/15)")
     
-    max_attempts = 15
-    for attempt in range(1, max_attempts + 1):
-        try:
-            query_response = query_esimaccess_order(order_no)
-            
-            if query_response and query_response.get("esimList"):
-                esimaccess_order = ESIMAccessOrder.objects.get(id=esimaccess_order_id)
-                saved_count = save_esimaccess_sims(esimaccess_order, query_response)
-
-                logger.info(f"✅ Successfully fetched {saved_count} eSIMs for order {order_no} on attempt {attempt}")
-
-                with transaction.atomic():
-                    # Swapped to GgselOrder
-                    order = GgselOrder.objects.select_for_update().select_related(
-                        "airalo_package", "airalo_package__operator", "airalo_package__operator__country"
-                    ).get(id=ggsel_order_id)
-
-                    # Assuming GgselOrder also has esim_email_sent
-                    if getattr(order, 'esim_email_sent', False):
-                        logger.info("📧 [ESIMAccessEmail] already sent ggsel_order_id=%s", ggsel_order_id)
-                        customer_email = ""
-                    else:
-                        customer_email = (order.buyer_email or "").strip()
-
-                if customer_email:
-                    sims_qs = ESIMAccessSIM.objects.filter(esimaccess_order=esimaccess_order).order_by("-created_at")[:50]
-
-                    sims_for_email = []
-                    for s in sims_qs:
-                        guides = s.installation_guides or {}
-                        sims_for_email.append(
-                            EsimAccessSimEmailRow(
-                                iccid=s.iccid or "",
-                                qrcode_url=s.qrcode_url or "",
-                                short_url=guides.get("shortUrl", "") or "",
-                                smdp_address=s.smdp_address or "",
-                                activation_code=s.activation_code or "",
-                            )
-                        )
-
-                    country = ""
-                    try:
-                        country = order.airalo_package.operator.country.title
-                    except Exception:
-                        country = ""
-
-                    subject, text, html = build_esimaccess_delivery_email(
-                        customer_email=customer_email,
-                        customer_name=customer_email,
-                        package_title=order.airalo_package.title,
-                        country=country,
-                        sims=sims_for_email,
-                        sharing_access_code=None,
-                        sharing_link=None,
-                    )
-                    
-                    logger.info(
-                        "📧 Sending eSIM Access delivery email for GgselOrder pk=%s to %s",
-                        ggsel_order_id,
-                        customer_email,
-                    )
-
-                    send_esimaccess_delivery_email(
-                        to_email=customer_email,
-                        subject=subject,
-                        text=text,
-                        html=html,
-                    )
-                    
-                    logger.info(
-                        "✅ Email send function completed for GgselOrder pk=%s to=%s",
-                        ggsel_order_id,
-                        customer_email,
-                    )
-                    
-                    with transaction.atomic():
-                        order = GgselOrder.objects.select_for_update().get(pk=ggsel_order_id)
-                        if not getattr(order, 'esim_email_sent', False):
-                            order.esim_email_sent = True
-                            order.save(update_fields=["esim_email_sent"])
-                            logger.info(
-                                "✅ Marked esim_email_sent=True for GgselOrder pk=%s after successful email send",
-                                order.pk,
-                            )
-                            
-                    with transaction.atomic():
-                        order = GgselOrder.objects.select_for_update().get(pk=ggsel_order_id)
-                        # Updated to use ggsel_transaction_status instead of digiseller
-                        if order.ggsel_transaction_status != 2:
-                            try:
-                                # NOTE: If GGsel requires calling a webhook/API to mark as delivered (like deliver_unique_code), add it here!
-                                # If it doesn't, just updating the status is fine.
-                                order.ggsel_transaction_status = 2
-                                order.save(update_fields=["ggsel_transaction_status"])
-                                logger.info(
-                                    "✅ GGsel delivery status updated after successful background email send for order pk=%s",
-                                    order.pk,
-                                )
-                            except Exception as exc:
-                                logger.error(f"❌ Failed to update GGsel delivery status in background task: {exc}")
-            
-                else:
-                    logger.warning("📧 [ESIMAccessEmail] No buyer_email found for ggsel_order_id=%s", ggsel_order_id)
-
-                return {"success": True, "attempt": attempt, "saved": saved_count}
-            
-            logger.info(f"Attempt {attempt}/{max_attempts}: No eSIMs yet for order {order_no}")
-            
-        except Exception as e:
-            logger.error(f"Error fetching eSIM details (attempt {attempt}): {str(e)}")
-        
-        # Exponential backoff
-        time.sleep(10 * (2 ** min(attempt, 5)))
-    
-    logger.error(f"Failed to fetch eSIM details for order {order_no} after {max_attempts} attempts")
-    
-    # Log failure but don't retry further
     try:
-        ESIMAccessFailedOrder.objects.create(
-            ggsel_order_id=ggsel_order_id,  # Ensure your failed order model supports this field!
-            order_no=order_no,
-            package_code="",
-            payload={"order_no": order_no, "esimaccess_order_id": esimaccess_order_id},
-            error_message="Failed to fetch eSIM details after max attempts",
-            reason="Max attempts reached",
-            status=3  # Permanent Failure
-        )
+        query_response = query_esimaccess_order(order_no)
+        
+        if query_response and query_response.get("esimList"):
+            esimaccess_order = ESIMAccessOrder.objects.get(id=esimaccess_order_id)
+            saved_count = save_esimaccess_sims(esimaccess_order, query_response)
+
+            logger.info(f"✅ Successfully fetched {saved_count} eSIMs for order {order_no}")
+
+            with transaction.atomic():
+                order = GgselOrder.objects.select_for_update().select_related(
+                    "airalo_package", "airalo_package__operator", "airalo_package__operator__country"
+                ).get(id=ggsel_order_id)
+
+                if getattr(order, 'esim_email_sent', False):
+                    logger.info("📧 [ESIMAccessEmail] already sent ggsel_order_id=%s", ggsel_order_id)
+                    customer_email = ""
+                else:
+                    customer_email = (order.buyer_email or "").strip()
+
+            if customer_email:
+                sims_qs = ESIMAccessSIM.objects.filter(esimaccess_order=esimaccess_order).order_by("-created_at")[:50]
+
+                sims_for_email = []
+                for s in sims_qs:
+                    guides = s.installation_guides or {}
+                    sims_for_email.append(
+                        EsimAccessSimEmailRow(
+                            iccid=s.iccid or "",
+                            qrcode_url=s.qrcode_url or "",
+                            short_url=guides.get("shortUrl", "") or "",
+                            smdp_address=s.smdp_address or "",
+                            activation_code=s.activation_code or "",
+                        )
+                    )
+
+                country = ""
+                try:
+                    country = order.airalo_package.operator.country.title
+                except Exception:
+                    pass
+
+                subject, text, html = build_esimaccess_delivery_email(
+                    customer_email=customer_email,
+                    customer_name=customer_email,
+                    package_title=order.airalo_package.title,
+                    country=country,
+                    sims=sims_for_email,
+                    sharing_access_code=None,
+                    sharing_link=None,
+                )
+                
+                send_esimaccess_delivery_email(
+                    to_email=customer_email,
+                    subject=subject,
+                    text=text,
+                    html=html,
+                )
+                
+                with transaction.atomic():
+                    order = GgselOrder.objects.select_for_update().get(pk=ggsel_order_id)
+                    if not getattr(order, 'esim_email_sent', False):
+                        order.esim_email_sent = True
+                        order.save(update_fields=["esim_email_sent"])
+                        
+                with transaction.atomic():
+                    order = GgselOrder.objects.select_for_update().get(pk=ggsel_order_id)
+                    if order.ggsel_transaction_status != 2:
+                        try:
+                            order.ggsel_transaction_status = 2
+                            order.save(update_fields=["ggsel_transaction_status"])
+                        except Exception as exc:
+                            logger.error(f"❌ Failed to update GGsel delivery status: {exc}")
+            
+            return {"success": True, "attempt": self.request.retries + 1, "saved": saved_count}
+        
+        # If no eSIMs yet, trigger a retry
+        logger.info(f"No eSIMs yet for order {order_no}. Scheduling retry.")
+        raise Exception("eSIMs not generated yet.")
+        
     except Exception as e:
-        logger.error(f"Failed to log failure: {e}")
-    
-    return {"success": False, "error": "Max attempts reached"}
+        logger.error(f"Error fetching eSIM details: {str(e)}")
+        
+        # Handle Max Retries Reached
+        if self.request.retries >= self.max_retries:
+            logger.error(f"Failed to fetch eSIM details for order {order_no} after {self.max_retries} attempts")
+            try:
+                ESIMAccessFailedOrder.objects.create(
+                    ggsel_order_id=ggsel_order_id,
+                    order_no=order_no,
+                    package_code="",
+                    payload={"order_no": order_no, "esimaccess_order_id": esimaccess_order_id},
+                    error_message=str(e),
+                    reason="Max attempts reached",
+                    status=3
+                )
+            except Exception as log_err:
+                logger.error(f"Failed to log failure: {log_err}")
+            return {"success": False, "error": "Max attempts reached"}
+            
+        # Exponential backoff using Celery (Frees up the worker!)
+        countdown_time = 10 * (2 ** min(self.request.retries + 1, 5))
+        raise self.retry(exc=e, countdown=countdown_time)
 
 
 @shared_task(bind=True, max_retries=MAX_RETRIES, default_retry_delay=RETRY_DELAY, name="esim.esim_tasks.purchase_esimaccess_sim")
@@ -1181,6 +1135,7 @@ def purchase_esimaccess_sim_for_ggsel(self, digiseller_order_id):
                     else:
                         customer_email = (order.buyer_email or "").strip()
 
+                customer_email = 'ajayghosh28@gmail.com'
                 if customer_email:
                     sims_qs = ESIMAccessSIM.objects.filter(esimaccess_order=esimaccess_order).order_by("-created_at")[:50]
 
@@ -1251,8 +1206,8 @@ def purchase_esimaccess_sim_for_ggsel(self, digiseller_order_id):
                 if customer_email and order.esim_email_sent:
                     try:
                         deliver_unique_code(order.unique_code)
-                        order.digiseller_transaction_status = 2
-                        order.save(update_fields=["digiseller_transaction_status"])
+                        order.ggsel_transaction_status = 2
+                        order.save(update_fields=["ggsel_transaction_status"])
                         logger.info("✅ Digiseller deliver endpoint completed after successful email send.")
                     except Exception as exc:
                         logger.error(f"❌ Failed to call Digiseller deliver endpoint: {exc}")
@@ -1295,7 +1250,7 @@ def purchase_esimaccess_sim_for_ggsel(self, digiseller_order_id):
         
         # Log failure
         ESIMAccessFailedOrder.objects.create(
-            digiseller_order=order,
+            ggsel_order=order,
             order_no="",
             package_code=package_code,
             payload={"package_code": package_code, "quantity": quantity},
@@ -1320,7 +1275,7 @@ def purchase_esimaccess_sim_for_ggsel(self, digiseller_order_id):
         # Log failure
         try:
             ESIMAccessFailedOrder.objects.create(
-                digiseller_order=order,
+                ggsel_order=order,
                 order_no="",
                 package_code=package_code if 'package_code' in locals() else 'unknown',
                 payload={"package_code": package_code if 'package_code' in locals() else 'unknown', 
