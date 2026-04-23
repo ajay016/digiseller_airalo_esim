@@ -530,16 +530,15 @@ def fetch_esimaccess_details_async_ggsel(self, order_no, esimaccess_order_id, gg
 
             logger.info(f"✅ Successfully fetched {saved_count} eSIMs for order {order_no}")
 
-            with transaction.atomic():
-                order = GgselOrder.objects.select_for_update().select_related(
-                    "airalo_package", "airalo_package__operator", "airalo_package__operator__country"
-                ).get(id=ggsel_order_id)
+            order = GgselOrder.objects.select_for_update().select_related(
+                "airalo_package", "airalo_package__operator", "airalo_package__operator__country"
+            ).get(id=ggsel_order_id)
 
-                if getattr(order, 'esim_email_sent', False):
-                    logger.info("📧 [ESIMAccessEmail] already sent ggsel_order_id=%s", ggsel_order_id)
-                    customer_email = ""
-                else:
-                    customer_email = (order.buyer_email or "").strip()
+            if getattr(order, 'esim_email_sent', False):
+                logger.info("📧 [ESIMAccessEmail] already sent ggsel_order_id=%s", ggsel_order_id)
+                customer_email = ""
+            else:
+                customer_email = (order.buyer_email or "").strip()
 
             if customer_email:
                 sims_qs = ESIMAccessSIM.objects.filter(esimaccess_order=esimaccess_order).order_by("-created_at")[:50]
@@ -580,20 +579,19 @@ def fetch_esimaccess_details_async_ggsel(self, order_no, esimaccess_order_id, gg
                     html=html,
                 )
                 
-                with transaction.atomic():
-                    order = GgselOrder.objects.select_for_update().get(pk=ggsel_order_id)
-                    if not getattr(order, 'esim_email_sent', False):
-                        order.esim_email_sent = True
-                        order.save(update_fields=["esim_email_sent"])
+
+                order = GgselOrder.objects.select_for_update().get(pk=ggsel_order_id)
+                if not getattr(order, 'esim_email_sent', False):
+                    order.esim_email_sent = True
+                    order.save(update_fields=["esim_email_sent"])
                         
-                with transaction.atomic():
-                    order = GgselOrder.objects.select_for_update().get(pk=ggsel_order_id)
-                    if order.ggsel_transaction_status != 2:
-                        try:
-                            order.ggsel_transaction_status = 2
-                            order.save(update_fields=["ggsel_transaction_status"])
-                        except Exception as exc:
-                            logger.error(f"❌ Failed to update GGsel delivery status: {exc}")
+                order = GgselOrder.objects.select_for_update().get(pk=ggsel_order_id)
+                if order.ggsel_transaction_status != 2:
+                    try:
+                        order.ggsel_transaction_status = 2
+                        order.save(update_fields=["ggsel_transaction_status"])
+                    except Exception as exc:
+                        logger.error(f"❌ Failed to update GGsel delivery status: {exc}")
             
             return {"success": True, "attempt": self.request.retries + 1, "saved": saved_count}
         
@@ -1128,7 +1126,8 @@ def purchase_esimaccess_sim_for_ggsel(self, digiseller_order_id):
                 logger.info(f"✅ Immediately fetched {saved_count} eSIMs for order {order_no}")
                 
                 with transaction.atomic():
-                    order = GgselOrder.objects.select_for_update().get(pk=digiseller_order_id)
+                    order.refresh_from_db()
+
                     if order.esim_email_sent:
                         logger.info("📧 [ESIMAccessEmail] already sent digiseller_order_id=%s", digiseller_order_id)
                         customer_email = ""
@@ -1186,12 +1185,13 @@ def purchase_esimaccess_sim_for_ggsel(self, digiseller_order_id):
                         customer_email,
                     )
                     
-                    with transaction.atomic():
-                        order = GgselOrder.objects.select_for_update().get(pk=digiseller_order_id)
-                        if not order.esim_email_sent:
-                            order.esim_email_sent = True
-                            order.save(update_fields=["esim_email_sent"])
-                            logger.info(
+                    updated = GgselOrder.objects.filter(
+                        pk=digiseller_order_id,
+                        esim_email_sent=False
+                    ).update(esim_email_sent=True)
+
+                    if updated:
+                        logger.info(
                                 "✅ Marked esim_email_sent=True for GgselOrder pk=%s after successful email send",
                                 order.pk,
                             )
@@ -1199,14 +1199,15 @@ def purchase_esimaccess_sim_for_ggsel(self, digiseller_order_id):
                     logger.warning("📧 [ESIMAccessEmail] No buyer_email found for digiseller_order_id=%s", order.id)
                 
                 # Mark order as completed
-                order.status = "completed"
-                order.save(update_fields=["status"])
+                GgselOrder.objects.filter(pk=digiseller_order_id).update(status="completed")
 
                 if customer_email and order.esim_email_sent:
                     try:
                         deliver_unique_code(order.unique_code)
                         order.ggsel_transaction_status = 2
-                        order.save(update_fields=["ggsel_transaction_status"])
+                        GgselOrder.objects.filter(pk=digiseller_order_id).update(
+                            ggsel_transaction_status=2
+                        )
                         logger.info("✅ Digiseller deliver endpoint completed after successful email send.")
                     except Exception as exc:
                         logger.error(f"❌ Failed to call Digiseller deliver endpoint: {exc}")
