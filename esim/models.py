@@ -115,7 +115,7 @@ class UserProfile(models.Model):
     
 class Country(models.Model):
     slug = models.SlugField()
-    country_code = models.CharField(max_length=5)
+    country_code = models.CharField(max_length=10)
     title = models.CharField(max_length=100)
     image_url = models.URLField(blank=True, null=True)
     image_width = models.PositiveIntegerField(blank=True, null=True)
@@ -151,7 +151,7 @@ class Operator(models.Model):
 
 class OperatorCountry(models.Model):
     operator = models.ForeignKey(Operator, on_delete=models.CASCADE, related_name='available_countries')
-    country_code = models.CharField(max_length=5)
+    country_code = models.CharField(max_length=10)
     title = models.CharField(max_length=100)
     image_url = models.URLField(blank=True, null=True)
     image_width = models.PositiveIntegerField(blank=True, null=True)
@@ -441,11 +441,11 @@ class DigisellerOrder(models.Model):
     # Buyer info
     buyer_email           = models.EmailField(null=True, blank=True)
     buyer_ip              = models.GenericIPAddressField(null=True, blank=True)
-    buyer_payment_method  = models.CharField(max_length=50, blank=True, null=True)
+    buyer_payment_method  = models.CharField(max_length=100, blank=True, null=True)
 
     # Full Digiseller purchase-info snapshot
     purchase_amount       = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
-    purchase_currency     = models.CharField(max_length=10, blank=True, null=True)
+    purchase_currency     = models.CharField(max_length=100, blank=True, null=True)
     purchase_date         = models.DateTimeField(null=True, blank=True)
     invoice_state         = models.IntegerField(null=True, blank=True)
     raw_payload           = models.JSONField()  # store the entire content dict for auditing
