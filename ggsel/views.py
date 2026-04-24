@@ -939,29 +939,15 @@ def handle_ggseller_webhook(data: dict, code):
         
 def persist_and_queue(product, variant, airalo_pkg, buyer_info, quantity, content, order_id, purchase_date_raw, code):
     """Create GgselOrder and enqueue Celery task."""
-    ggsel_order, created = GgselOrder.objects.get_or_create(
-        order_id=order_id,
-        defaults={
-            "product": product,
-            "variant": variant,
-            "airalo_package": airalo_pkg,
-            "quantity": quantity,
-            "buyer_email": buyer_info.get("email"),
-            "buyer_ip": buyer_info.get("ip_address"),
-            "buyer_payment_method": buyer_info.get("payment_method"),
-            "purchase_amount": content.get("amount"),
-            "purchase_currency": content.get("currency_type"),
-            "invoice_state": content.get("invoice_state"),
-            "purchase_date": purchase_date,
-            "ggsel_transaction_status": content.get("unique_code_state", {}).get("state", 1),
-            "raw_payload": content,
-            "status": "received",
-            "unique_code": code,
-        }
-    )
-
-    if not created:
+    try:
+        # If the order already exists, no need to recreate it
+        ggsel_order = GgselOrder.objects.get(order_id=order_id)
+        print(f"print statement ggsel_order in persist and queue function: {ggsel_order}")
+        print(f"logger info statement ggsel_order in persist and queue function: {ggsel_order}")
+        GgselFailedOrder.objects.filter(order_id=order_id).delete()
         return ggsel_order
+    except GgselOrder.DoesNotExist:
+        pass  # Proceed to create the order
 
     # Parse purchase_date string (e.g., "29.05.2025 8:49:40")
     try:
