@@ -284,27 +284,39 @@
                             {% trans "We've sent your eSIM to your email address. Please check your inbox (and spam folder) within the next 30 minutes." %}
                         </p> {% endcomment %}
 
-                        <p class="mb-0">{% trans "We have sent your eSIM to the specified email address" %}.</p>
-                        <p class="mb-0">{% trans "Please check your inbox, including the Spam and Promotions folders, within the next 10 minutes" %}.</p>
-                        <br>
-                        <p class="mb-0">❗ {% trans "Didn't receive the email? Don't worry" %}!</p>
-                        <p>{% trans "Contact our support team, and we’ll help you right away" %} 📲</p>
+                        <p class="mb-0">
+                            📧 {% trans "We've sent your eSIM to the email address you provided." %}
+                        </p>
 
-                        {% comment %} {% if social_media_ad.telegram_link %}
-                            {% with '<a href="'|add:social_media_ad.telegram_link|add:'" class="fw-bold"><i class="fab fa-telegram"></i> Telegram</a>' as telegram_link %}
-                                <p class="mb-0 small-text">
-                                    {% blocktrans with telegram_link=telegram_link|safe %}
-                                        If you don't receive it, contact us immediately on {{ telegram_link }} for assistance.
-                                    {% endblocktrans %}
-                                </p>
-                            {% endwith %}
-                        {% else %}
-                            <p class="mb-0 small-text">
-                                {% blocktrans %}
-                                    If you don't receive it, contact us immediately for assistance.
-                                {% endblocktrans %}
-                            </p>
-                        {% endif %} {% endcomment %}
+                        <p class="mb-0 mt-3">
+                            {% trans "Please check your email inbox, including the Spam and Promotions folders, within the next 10 minutes." %}
+                        </p>
+
+                        <p class="mb-0 mt-3">
+                            ❗ {% trans "If you haven't received the email, don't worry! Contact our support team, and we'll help you promptly." %} 📲
+                        </p>
+
+                        <h5 class="mt-4">
+                            {% trans "Before you start using it" %}
+                        </h5>
+
+                        <p class="mb-2">
+                            🌍 {% trans "Upon arrival in your destination country, open your phone's settings and:" %}
+                        </p>
+
+                        <ul class="mb-3">
+                            <li>
+                                {% trans "Enable data roaming for the installed eSIM." %}
+                            </li>
+                            <li>
+                                {% trans "Select our eSIM as your mobile data source instead of your primary SIM card." %}
+                            </li>
+                        </ul>
+
+                        <p class="mb-0">
+                            💡 {% trans "Internet access will start automatically within a few minutes after connecting to the local network in your destination country. If this doesn't happen, restart your phone or contact our support team—we're always here to help." %}
+                        </p>
+
                     </div>
                 </div>
             </div>
