@@ -119,9 +119,30 @@ def get_digiseller_token():
                 time.sleep(RETRY_DELAY_SECONDS * attempt)  # exponential backoff
     
 
+# GGsel reset every seller session on 2026-09-24 and asked integrations to answer
+# 401/403 by getting a new token (apilogin); the API key does not change. Our token
+# is cached for hours, so without this every request failed until it expired.
+REFUSED_TOKEN = (401, 403)
+
+
+def digiseller_request(method, url, **kwargs):
+    """
+    requests.<method>(url?token=...) under the cached Digiseller token. If Digiseller
+    refuses the token (401/403), the cached one is dropped, a new one is
+    obtained and the request is sent ONCE more. Returns the response; the
+    caller still calls raise_for_status() as before.
+    """
+    call = getattr(requests, method)
+    resp = call(f"{url}?token={get_digiseller_token()}", **kwargs)
+    if resp.status_code in REFUSED_TOKEN:
+        logger.warning("[digiseller_request] Digiseller refused the token (HTTP %s); logging in again", resp.status_code)
+        cache.delete(DIGISELLER_TOKEN_CACHE_KEY)
+        resp = call(f"{url}?token={get_digiseller_token()}", **kwargs)
+    return resp
+
+
 # 2. Fetch seller goods list with generated token
 def fetch_seller_goods(rows=1000, page=1, owner_id=1):
-    token = get_digiseller_token()
     payload = {
         "id_seller": SELLER_ID,
         "order_col": "name",
@@ -134,7 +155,7 @@ def fetch_seller_goods(rows=1000, page=1, owner_id=1):
         "owner_id": owner_id
     }
     print('payload in fetch seller goods: ', payload)
-    resp = requests.post(f"{SELLER_GOODS_URL}?token={token}", json=payload, timeout=15)
+    resp = digiseller_request("post", SELLER_GOODS_URL, json=payload, timeout=15)
     try:
         resp.raise_for_status()
         text = resp.content.decode('utf-8-sig')
@@ -564,9 +585,8 @@ def digiseller_deliver(request):
 
 
 def verify_unique_code_and_get_info(code: str) -> Dict:
-    token = get_digiseller_token()
-    url = f"https://api.digiseller.com/api/purchases/unique-code/{code}?token={token}"
-    resp = requests.get(url, timeout=10)
+    url = f"https://api.digiseller.com/api/purchases/unique-code/{code}"
+    resp = digiseller_request("get", url, timeout=10)
     resp.raise_for_status()
 
     data = resp.json()
@@ -595,10 +615,10 @@ def verify_unique_code_and_get_info(code: str) -> Dict:
     return digiseller_order
 
 
-def get_purchase_info(order_id: int, token: str) -> Dict:
-    """Fetch purchase/info and raise for network / API failures."""
-    url = f"https://api.digiseller.com/api/purchase/info/{order_id}?token={token}"
-    resp = requests.get(url, timeout=10)
+def get_purchase_info(order_id: int, token: str = None) -> Dict:
+    """Fetch purchase/info and raise for network / API failures (`token` is no longer used)."""
+    url = f"https://api.digiseller.com/api/purchase/info/{order_id}"
+    resp = digiseller_request("get", url, timeout=10)
     resp.raise_for_status()
     return resp.json().get("content", {})
 
@@ -650,8 +670,7 @@ def handle_digiseller_webhook(data: Dict, code) -> None:
     if not product_qs.exists():
         raise SkipWebhook("Product not found in DB")
 
-    token    = get_digiseller_token()
-    content  = get_purchase_info(order_id, token)
+    content  = get_purchase_info(order_id)
     validate_product(content, product_id, order_id)
 
     product      = product_qs.get()

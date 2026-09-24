@@ -351,18 +351,17 @@ def save_esimaccess_sims(esimaccess_order, query_response):
 
 def deliver_unique_code(code: str):
     """Tell Digiseller that goods have been delivered"""
-    from digiseller.views import get_digiseller_token
-    
-    token = get_digiseller_token()
-    url = f"https://api.digiseller.com/api/purchases/unique-code/{code}/deliver?token={token}"
+    from digiseller.views import digiseller_request
+
+    url = f"https://api.digiseller.com/api/purchases/unique-code/{code}/deliver"
     headers = {"Accept": "application/json"}
     
     logger.info(f"Calling Digiseller deliver endpoint for code: {code}")
     
     try:
-        resp = requests.put(url, headers=headers, timeout=10)
+        resp = digiseller_request("put", url, headers=headers, timeout=10)
         resp.raise_for_status()
-        
+
         try:
             payload = resp.json()
         except ValueError:

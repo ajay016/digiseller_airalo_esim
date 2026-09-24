@@ -119,13 +119,34 @@ def get_ggsel_token():
             if attempt == MAX_RETRIES:
                 raise Exception(f"Failed to obtain Digiseller token after {MAX_RETRIES} attempts: {e}")
             time.sleep(RETRY_DELAY_SECONDS * attempt)
-    
+
+
+# GGsel reset every seller session on 2026-09-24 and asked integrations to answer
+# 401/403 by getting a new token (apilogin); the API key does not change. Our token
+# is cached for hours, so without this every request failed until it expired.
+REFUSED_TOKEN = (401, 403)
+
+
+def ggsel_request(method, url, **kwargs):
+    """
+    requests.<method>(url?token=...) under the cached GGsel token. If GGsel
+    refuses the token (401/403), the cached one is dropped, a new one is
+    obtained and the request is sent ONCE more. Returns the response; the
+    caller still calls raise_for_status() as before.
+    """
+    call = getattr(requests, method)
+    resp = call(f"{url}?token={get_ggsel_token()}", **kwargs)
+    if resp.status_code in REFUSED_TOKEN:
+        logger.warning("[ggsel_request] GGsel refused the token (HTTP %s); logging in again", resp.status_code)
+        cache.delete(GGSEL_TOKEN_CACHE_KEY)
+        resp = call(f"{url}?token={get_ggsel_token()}", **kwargs)
+    return resp
 
 
 def fetch_seller_goods(rows=1000, owner_id=1, max_workers=8):
     logger.warning(f"[fetch_seller_goods] START owner_id={owner_id}, rows={rows}, max_workers={max_workers}")
 
-    token = get_ggsel_token()
+    get_ggsel_token()  # log in (or fail) before anything else, as before
     all_products = []
     total_pages = 1
 
@@ -142,7 +163,7 @@ def fetch_seller_goods(rows=1000, owner_id=1, max_workers=8):
             "owner_id": owner_id,
         }
 
-        resp = requests.post(f"{SELLER_GOODS_URL}?token={token}", json=payload, timeout=20)
+        resp = ggsel_request("post", SELLER_GOODS_URL, json=payload, timeout=20)
         logger.warning(f"[fetch_seller_goods] first page status={resp.status_code}")
         resp.raise_for_status()
 
@@ -173,8 +194,9 @@ def fetch_seller_goods(rows=1000, owner_id=1, max_workers=8):
                 "owner_id": owner_id,
             }
 
-            resp = requests.post(
-                f"{SELLER_GOODS_URL}?token={token}",
+            resp = ggsel_request(
+                "post",
+                SELLER_GOODS_URL,
                 json=page_payload,
                 timeout=20,
             )
@@ -772,9 +794,8 @@ def ggseller_deliver(request):
 
 
 def verify_unique_code_and_get_info(code: str) -> Dict:
-    token = get_ggsel_token()
-    url = f"{GGSEL_BASE_API}/api_sellers/api/purchases/unique-code/{code}?token={token}"
-    resp = requests.get(url, timeout=10)
+    url = f"{GGSEL_BASE_API}/api_sellers/api/purchases/unique-code/{code}"
+    resp = ggsel_request("get", url, timeout=10)
     resp.raise_for_status()
 
     data = resp.json()
@@ -802,10 +823,10 @@ def verify_unique_code_and_get_info(code: str) -> Dict:
     return ggsel_order
 
 
-def get_purchase_info(order_id: int, token: str) -> Dict:
-    """Fetch purchase/info and raise for network / API failures."""
-    url = f"{GGSEL_BASE_API}/api_sellers/api/purchase/info/{order_id}?token={token}"
-    resp = requests.get(url, timeout=10)
+def get_purchase_info(order_id: int, token: str = None) -> Dict:
+    """Fetch purchase/info and raise for network / API failures (`token` is no longer used)."""
+    url = f"{GGSEL_BASE_API}/api_sellers/api/purchase/info/{order_id}"
+    resp = ggsel_request("get", url, timeout=10)
     resp.raise_for_status()
     return resp.json().get("content", {})
 
@@ -905,8 +926,7 @@ def handle_ggseller_webhook(data: dict, code):
     if not product_qs.exists():
         raise SkipWebhook("Product not found in DB")
 
-    token = get_ggsel_token()
-    content = get_purchase_info(order_id, token)
+    content = get_purchase_info(order_id)
     validate_product(content, product_id, order_id)
 
     product = product_qs.get()

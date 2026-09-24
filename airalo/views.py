@@ -395,21 +395,20 @@ def purchase_airalo_sim(digiseller_order_id):
     
     
 def deliver_unique_code(code: str):
-    from digiseller.views import get_digiseller_token
+    from digiseller.views import digiseller_request
     """
     Tell Digiseller “Ive delivered the goods for this unique code.”
     PUT https://api.digiseller.com/api/purchases/unique-code/{code}/deliver?token={token}
     """
-    token = get_digiseller_token()
-    print(f"🔑 Using Digiseller API token++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++: {token}")
+    # (The token is no longer printed: it is a live credential and ended up in the logs.)
     url = (
         f"https://api.digiseller.com/api/purchases/"
-        f"unique-code/{code}/deliver?token={token}"
+        f"unique-code/{code}/deliver"
     )
     headers = {
         "Accept": "application/json",
     }
-    resp = requests.put(url, headers=headers, timeout=10)
+    resp = digiseller_request("put", url, headers=headers, timeout=10)
     # for debugging, always print full status & body
     print("🔔 Digiseller deliver status:", resp.status_code)
     try:
