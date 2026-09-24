@@ -120,6 +120,7 @@ class GgselVariantAdmin(admin.ModelAdmin):
 class GgselOrderAdmin(admin.ModelAdmin):
     list_display = (
         'order_id',
+        'unique_code',
         'product',
         'variant',
         'status',
